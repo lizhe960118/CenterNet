@@ -34,9 +34,6 @@ def txt_eval(result_file, dataset, iou_thr=0.5):
         #print('2')
         gt_ignore = gt_ignore
         
-#     if hasattr(dataset, 'year') and dataset.year == 2007:
-#         dataset_name = 'voc07'
-#     else:
     dataset_name = dataset.CLASSES
     print(dataset_name)
     eval_map(

@@ -1,2 +1,2 @@
 #!/bin/bash
-python tools/visdrone_train.py  configs/visdrone_centernet_hourglass.py --work_dir hourglass_cache --gpus 1
+python tools/train.py  configs/voc_centernet_hourglass.py --work_dir /data/lizhe/model/hourglass_cache --gpus 1

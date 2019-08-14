@@ -6,8 +6,9 @@ from .ga_rpn_head import GARPNHead
 from .retina_head import RetinaHead
 from .ga_retina_head import GARetinaHead
 from .ssd_head import SSDHead
+from .center_head import CenterHead
 
 __all__ = [
     'AnchorHead', 'GuidedAnchorHead', 'FeatureAdaption', 'RPNHead',
-    'GARPNHead', 'RetinaHead', 'GARetinaHead', 'SSDHead', 'FCOSHead'
+    'GARPNHead', 'RetinaHead', 'GARetinaHead', 'SSDHead', 'FCOSHead', 'CenterHead'
 ]

@@ -301,14 +301,22 @@ class FCOSHead(nn.Module):
     def fcos_target(self, points, gt_bboxes_list, gt_labels_list):
         assert len(points) == len(self.regress_ranges)
         num_levels = len(points)
+        
         # expand regress ranges to align with points
         expanded_regress_ranges = [
             points[i].new_tensor(self.regress_ranges[i])[None].expand_as(
                 points[i]) for i in range(num_levels)
         ]
+        #for i in range(num_levels):
+        #    print(i)
+        #    print("points.shape:",points[i].shape) #  torch.Size([15200, 2])
+        #    print("regress_ranges shape:", self.regress_ranges[i])
+        #    print("expanded_regress_ranges shape", expanded_regress_ranges[i].shape)
         # concat all levels points and regress ranges
         concat_regress_ranges = torch.cat(expanded_regress_ranges, dim=0)
         concat_points = torch.cat(points, dim=0)
+        #print("concat_regress_ranges.shape", concat_regress_ranges.shape)
+        #print("concat_points.shape", concat_points.shape)
         # get labels and bbox_targets of each image
         labels_list, bbox_targets_list = multi_apply(
             self.fcos_target_single,
@@ -339,6 +347,12 @@ class FCOSHead(nn.Module):
     def fcos_target_single(self, gt_bboxes, gt_labels, points, regress_ranges):
         num_points = points.size(0)
         num_gts = gt_labels.size(0)
+        print("gt_bboxes", gt_bboxes.shape)
+        print("gt_labels", gt_labels.shape)
+        print("points", points.shape)
+        print(points[:10])
+        print("regress_ranges", regress_ranges.shape)
+        print(regress_ranges[:10])
 
         areas = (gt_bboxes[:, 2] - gt_bboxes[:, 0] + 1) * (
             gt_bboxes[:, 3] - gt_bboxes[:, 1] + 1)

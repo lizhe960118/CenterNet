@@ -304,7 +304,7 @@ class HRNet3(nn.Module):
             self.stage4_cfg, num_channels)
 
         last_inp_channels = np.int(np.sum(pre_stage_channels))
-
+        #last_inp_channels = np.int(pre_stage_channels[0])
         self.heads = heads
 
         for head in self.heads:
@@ -456,6 +456,7 @@ class HRNet3(nn.Module):
         x3 = F.upsample(x[3], size=(x0_h, x0_w), mode='bilinear')
 
         y = torch.cat([x[0], x1, x2, x3], 1)
+        #y = x[0]
         z = {}
         for head in self.heads:
             z[head] = self.__getattr__(head)(y)

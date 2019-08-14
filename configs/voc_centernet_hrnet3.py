@@ -1,3 +1,4 @@
+use_coco = False
 # model settings
 model = dict(
     type='CenterNet',
@@ -57,96 +58,95 @@ model = dict(
 #                 num_channels=(32, 64, 128, 256))),
     
         heads=dict(
-            hm = 10, wh=2, reg=2)
+            hm=80 if use_coco else 20, wh=2, reg=2)
         )
     )
 
 train_cfg = dict(a = 10)
 test_cfg = dict(a = 5)
-# dataset settings
-dataset_type = 'Ctdet_txt'
-data_root = '/hdd/lizhe/visdrone/'
 
-img_norm_cfg = dict(
+dataset_type = 'Ctdet'
+if use_coco:
+    data_root = '/data/lizhe/coco/'
+#     'ctdet': {'default_resolution': [512, 512], 'num_classes': 80, 
+#                 'mean': [0.408, 0.447, 0.470], 'std': [0.289, 0.274, 0.278],
+#                 'dataset': 'coco'},
+    img_norm_cfg = dict(
+        mean=[0.408, 0.447, 0.470], std=[0.289, 0.274, 0.278], to_rgb=True)
+#     img_norm_cfg = dict(
+#         mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+else:
+    data_root = '/data/lizhe/voc/'
+    img_norm_cfg = dict(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], to_rgb=True)
-
 data = dict(
-#   batch_size
-    imgs_per_gpu=3,
+    imgs_per_gpu=12,
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
-        ann_file= data_root + 'VisDrone2018-DET-train/rcnn_train.txt',
-        img_prefix= data_root + 'VisDrone2018-DET-train',
-        img_scale=(1024, 1024),
-#         img_scale=(416, 416),
-#         img_scale=(512, 512),
+        use_coco=use_coco,
+        ann_file=data_root + 'annotations/' +
+            ('instances_trainval2014.json' if use_coco else 'pascal_trainval0712.json'),
+        # ann_file=data_root + 'annotations/pascal_train2012.json' if ,
+        img_prefix=data_root + ('images/trainval2014/' if use_coco else 'images/'),
+        # img_scale=(1133, 800),
+        img_scale=(512, 512),
 #         img_scale=(800, 800),
-#         img_scale=(1000, 1000),
         img_norm_cfg=img_norm_cfg,
-        size_divisor=32,
-        flip_ratio=0.5,
+#         size_divisor=31,
+        # flip_ratio=0.,
         with_mask=False,
-        with_crowd=True,
+        with_crowd=False,
         with_label=True),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'VisDrone2018-DET-val/rcnn_valid.txt',
-        img_prefix=data_root + 'VisDrone2018-DET-val/',
-        img_scale=(1024, 1024),
-#         img_scale=(1333, 800),
-#         img_scale=(416, 416),
-#         img_scale=(512, 512),
+        use_coco=use_coco,
+        ann_file= data_root + 'annotations/' +
+            ('instances_minival2014.json' if use_coco else 'pascal_val2012.json'),
+        img_prefix=data_root + ('images/minival2014/' if use_coco else 'images/'),
+        # img_scale=(1333, 800),
 #         img_scale=(800, 800),
-#         img_scale=(1000, 1000),
+        img_scale=(512, 512),
         img_norm_cfg=img_norm_cfg,
-        size_divisor=32,
-        flip_ratio=0,
+#        size_divisor=31,
+#         flip_ratio=0,
         with_mask=False,
-        with_crowd=True,
+        with_crowd=False,
         with_label=True),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'VisDrone2018-DET-val/rcnn_valid.txt',
-        img_prefix=data_root + 'VisDrone2018-DET-val',
-        img_scale=(1024, 1024),
+        use_coco=use_coco,
+        ann_file= data_root + 'annotations/' +
+            ('instances_minival2014.json' if use_coco else 'pascal_test2007.json'),
+        img_prefix=data_root + ('images/minival2014/' if use_coco else 'images/'),
 #         img_scale=(1333, 800),
-#         img_scale=(416, 416),
-#         img_scale=(512, 512),
 #         img_scale=(800, 800),
-#         img_scale=(1000, 1000),
+        img_scale=(512, 512),
         img_norm_cfg=img_norm_cfg,
-        size_divisor=32,
-        flip_ratio=0,
+#       size_divisor=31,
+#         flip_ratio=0,
         with_mask=False,
         with_label=False,
         test_mode=True))
 # optimizer
-# optimizer = dict(type='SGD', lr=0.00025, momentum=0.9, weight_decay=0.0001)
-optimizer = dict(type='Adam', lr=0.00025, betas=(0.9, 0.999), eps=1e-8, weight_decay=0)
-# optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
-optimizer_config = dict(grad_clip=None)
+optimizer = dict(type='Adam', lr=0.00025)
+optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-# lr_config = dict(
-#     policy='step',
-#     warmup='linear',
-#     warmup_iters=500,
-#     warmup_ratio=1.0 / 3,
-#     step=[45, 50])
-# lr_config = dict(
-#     policy='step',
-#     warmup='constant',
-#     warmup_iters=500,
-#     warmup_ratio=1.0 / 3,
-#     step=[90, 100])
 lr_config = dict(
-    policy='poly',
-    warmup='constant',
+    policy='step',
+    warmup='linear',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    power=1., 
-    min_lr=1e-5)
-
+    step = [80, 90],
+    gamma = 0.1
+)
+#lr_config = dict(
+#    policy='poly',
+#    warmup='constant',
+#    warmup_iters=500,
+#    warmup_ratio=1.0 / 3,
+#    power=1., 
+#    min_lr=1e-10)
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
@@ -163,6 +163,6 @@ log_level = 'INFO'
 # work_dir = './work_dirs/faster_rcnn_r50_fpn_1x'
 work_dir = './work_dirs/centernet_hg'
 load_from = None
-# resume_from = None
-resume_from = 'hr3_cache/epoch_14.pth'
+#resume_from = None
+resume_from = '/data/lizhe/model/hr3_cache_1/epoch_44.pth'
 workflow = [('train', 1)]

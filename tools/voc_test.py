@@ -11,9 +11,13 @@ from mmcv.runner import load_checkpoint, get_dist_info
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 
 from mmdet.apis import init_dist
-from mmdet.core import results2json, coco_eval, wrap_fp16_model
+from mmdet.core import results2json
+# , coco_eval, 
+from txt_val import txt_eval
+from mmdet.core import wrap_fp16_model
 from mmdet.datasets import build_dataloader, build_dataset
 from mmdet.models import build_detector
+from mmdet import datasets
 
 
 def single_gpu_test(model, data_loader, show=False):
@@ -24,16 +28,13 @@ def single_gpu_test(model, data_loader, show=False):
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             result = model(return_loss=False, rescale=not show, **data)
-        print(result)
-        #for re in result:
-        #    results.append(result)
         results.append(result)
 
         if show:
             model.module.show_result(data, result, dataset.img_norm_cfg)
-        
-        #batch_size = 1
-        batch_size = data['img'][0].size(0)
+
+#         batch_size = data['img'][0].size(0)
+        batch_size = 1
         for _ in range(batch_size):
             prog_bar.update()
     return results
@@ -109,12 +110,12 @@ def parse_args():
     parser.add_argument('config', help='test config file path')
     parser.add_argument('checkpoint', help='checkpoint file')
     parser.add_argument('--out', help='output result file')
-    parser.add_argument(
-        '--eval',
-        type=str,
-        nargs='+',
-        choices=['proposal', 'proposal_fast', 'bbox', 'segm', 'keypoints'],
-        help='eval types')
+#     parser.add_argument(
+#         '--eval',
+#         type=str,
+#         nargs='+',
+#         choices=['proposal', 'proposal_fast', 'bbox', 'segm', 'keypoints'],
+#         help='eval types')
     parser.add_argument('--show', action='store_true', help='show results')
     parser.add_argument('--tmpdir', help='tmp dir for writing some results')
     parser.add_argument(
@@ -123,6 +124,7 @@ def parse_args():
         default='none',
         help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--iou_thr', type=float, default=0.5)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -130,7 +132,7 @@ def parse_args():
 
 
 def main():
-#     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     args = parse_args()
 
     assert args.out or args.show, \
@@ -188,24 +190,31 @@ def main():
     if args.out and rank == 0:
         print('\nwriting results to {}'.format(args.out))
         mmcv.dump(outputs, args.out)
-        eval_types = args.eval
-        if eval_types:
-            print('Starting evaluate {}'.format(' and '.join(eval_types)))
-            if eval_types == ['proposal_fast']:
-                result_file = args.out
-                coco_eval(result_file, eval_types, dataset.coco)
-            else:
-                if not isinstance(outputs[0], dict):
-                    result_files = results2json(dataset, outputs, args.out)
-                    coco_eval(result_files, eval_types, dataset.coco)
-                else:
-                    for name in outputs[0]:
-                        print('\nEvaluating {}'.format(name))
-                        outputs_ = [out[name] for out in outputs]
-                        result_file = args.out + '.{}'.format(name)
-                        result_files = results2json(dataset, outputs_,
-                                                    result_file)
-                        coco_eval(result_files, eval_types, dataset.coco)
+        result_file = args.out
+#         args = parser.parse_args()
+#         cfg = mmcv.Config.fromfile(args.config)
+#         test_dataset = mmcv.runner.obj_from_dict(cfg.data.test, datasets)
+#         txt_eval(args.result, test_dataset, args.iou_thr)
+        txt_eval(result_file, dataset, iou_thr=args.iou_thr)
+        
+#         eval_types = args.eval
+#         if eval_types:
+#             print('Starting evaluate {}'.format(' and '.join(eval_types)))
+#             if eval_types == ['proposal_fast']:
+#                 result_file = args.out
+#                 coco_eval(result_file, eval_types, dataset.coco)
+#             else:
+#                 if not isinstance(outputs[0], dict):
+#                     result_files = results2json(dataset, outputs, args.out)
+#                     coco_eval(result_files, eval_types, dataset.coco)
+#                 else:
+#                     for name in outputs[0]:
+#                         print('\nEvaluating {}'.format(name))
+#                         outputs_ = [out[name] for out in outputs]
+#                         result_file = args.out + '.{}'.format(name)
+#                         result_files = results2json(dataset, outputs_,
+#                                                     result_file)
+#                         coco_eval(result_files, eval_types, dataset.coco)
 
 
 if __name__ == '__main__':

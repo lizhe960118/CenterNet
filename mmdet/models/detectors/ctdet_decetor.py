@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 # import random
 
-num_classes = 10
+num_classes = 20
     
 def _nms(heat, kernel=3):
     pad = (kernel - 1) // 2

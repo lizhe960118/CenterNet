@@ -119,3 +119,4 @@ work_dirs/
 
 # Pytorch
 *.pth
+*.json
