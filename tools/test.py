@@ -24,7 +24,8 @@ def single_gpu_test(model, data_loader, show=False):
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             result = model(return_loss=False, rescale=not show, **data)
-        print(result)
+        #print("result:", result)
+        #print(len(result))
         #for re in result:
         #    results.append(result)
         results.append(result)
@@ -32,8 +33,8 @@ def single_gpu_test(model, data_loader, show=False):
         if show:
             model.module.show_result(data, result, dataset.img_norm_cfg)
         
-        #batch_size = 1
-        batch_size = data['img'][0].size(0)
+        batch_size = 1
+        #batch_size = data['img'][0].size(0)
         for _ in range(batch_size):
             prog_bar.update()
     return results

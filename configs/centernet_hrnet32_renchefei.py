@@ -31,7 +31,7 @@ model = dict(
          ),
     
         heads=dict(
-            hm=80 if use_coco else 20, wh=2, reg=2)
+            hm=4, wh=2, reg=2)
         )
     )
 
@@ -50,7 +50,6 @@ data = dict(
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
-        use_coco=use_coco,
         ann_file=data_root + "deepv_resize/" + 'train.json',
         img_prefix=data_root + "deepv_resize/",
         # img_scale=(1133, 800),

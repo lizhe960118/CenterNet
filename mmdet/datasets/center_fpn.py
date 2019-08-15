@@ -134,14 +134,16 @@ class CenterFPN_dataset(CocoDataset):
         img = cv2.imread(img_path)
         height, width = img.shape[0], img.shape[1]
         c = np.array([img.shape[1] / 2., img.shape[0] / 2.], dtype=np.float32)
-        # if self.opt.keep_res: 
+        
+        keep_res = False
+        if keep_res: 
         # to keep the res
-        input_h = (height | self.size_divisor) + 1
-        input_w = (width | self.size_divisor) + 1
-        s = np.array([input_w, input_h], dtype=np.float32)
-        # else:
-        #s = max(img.shape[0], img.shape[1]) * 1.0
-        #input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
+            input_h = (height | self.size_divisor) + 1
+            input_w = (width | self.size_divisor) + 1
+            s = np.array([input_w, input_h], dtype=np.float32)
+        else:
+            s = max(img.shape[0], img.shape[1]) * 1.0
+            input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
 
         flipped = False
         # to random crop
@@ -214,7 +216,8 @@ class CenterFPN_dataset(CocoDataset):
         img_id = self.img_infos[index]['id']
         file_name = self.coco.loadImgs(ids=[img_id])[0]['file_name']
         img_path = os.path.join(self.img_prefix, file_name)
-
+        
+        #print(img_path)
         img = cv2.imread(img_path)
         img_shape = img.shape
         height, width = img.shape[0], img.shape[1]
@@ -236,7 +239,7 @@ class CenterFPN_dataset(CocoDataset):
             s = np.array([input_w, input_h], dtype=np.float32)
         
         trans_input = get_affine_transform(c, s, 0, [input_w, input_h])
-        resized_image = cv2.resize(image, (new_width, new_height))
+        resized_image = cv2.resize(img, (new_width, new_height))
         
         # 先变换到resized_image
         inp_image = cv2.warpAffine(resized_image, trans_input, 

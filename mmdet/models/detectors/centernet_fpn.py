@@ -15,10 +15,10 @@ class CenterNetFPN(SingleStageDetector):
         super(CenterNetFPN, self).__init__(backbone, neck, bbox_head, train_cfg,
                                    test_cfg, pretrained)
         
-    def simple_test(self, img, img_meta):
+    def forward_test(self, img, img_meta,**kwargs):
         x = self.extract_feat(img)
         outs = self.bbox_head(x)
         bbox_inputs = outs + (img_meta, self.test_cfg)
         result_lists = self.bbox_head.get_bboxes(*bbox_inputs)
-        print(result_lists)
-        return result_lists
+        #print("result_lists:", result_lists) #[1]
+        return result_lists[0]

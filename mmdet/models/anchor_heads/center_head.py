@@ -160,7 +160,7 @@ class CenterHead(nn.Module):
         heatmaps, wh_targets, offset_targets = self.center_target(gt_bboxes, gt_labels, img_metas, all_level_points) # 所有层的concat的， 每张图对应一个
 
         num_imgs = cls_scores[0].size(0) # batch_size
-        print(num_imgs)
+        #print(num_imgs)
         # flatten cls_scores, bbox_preds and centerness
         flatten_cls_scores = [
             cls_score.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
@@ -423,7 +423,7 @@ class CenterHead(nn.Module):
                     img_metas,
                     cfg):
         assert len(cls_scores) == len(wh_preds) == len(offset_preds)
-        # cls_scores => [num_levels] => [batchsize, featmap] => [batch_size, 80, h, w]
+        # cls_scores => [num_levels] => [batch featmap] => [batch, 80, h, w]
         # wh_preds  => [num_levels] => [featmap] => [2, h, w]
         # offset_preds => [num_levels] => [featmap] => [2, h, w]
         num_levels = len(cls_scores)
@@ -431,6 +431,8 @@ class CenterHead(nn.Module):
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
 
         result_list = []
+        #print(cls_scores[0].shape) # torch.Size([1, 80, 84, 56])
+        #print(img_metas)
 
         for img_id in range(len(img_metas)): # 每个batch中id
             cls_score_list = [
@@ -448,7 +450,7 @@ class CenterHead(nn.Module):
             s = img_metas[img_id]['s']
             det_bboxes = self.get_bboxes_single(cls_score_list,  wh_pred_list,
                                                 offset_pred_list,
-                                                featmap_sizes, img_shape, c, s,
+                                                featmap_sizes, c, s,
                                                 scale_factor, cfg) # 对每一张图像进行解调
             result_list.append(det_bboxes)
         return result_list # [batch_size]
@@ -458,7 +460,6 @@ class CenterHead(nn.Module):
                         wh_preds,
                         offset_preds,
                         featmap_sizes,
-                        img_shape,
                         c, 
                         s,
                         scale_factor,
@@ -468,20 +469,23 @@ class CenterHead(nn.Module):
         detections = []
         for cls_score, wh_pred, offset_pred, featmap_size in zip(
                 cls_scores, wh_preds, offset_preds, featmap_sizes): # 取出每一层的点
-            assert cls_score.size()[-2:] == wh_pred.size()[-2:] == offset_pred.size()[-2:]
+            assert cls_score.size()[-2:] == wh_pred.size()[-2:] == offset_pred.size()[-2:] == featmap_size
             
             output_h, output_w = featmap_size
             #实际上得到了每一层的hm, wh, offset
             hm = torch.clamp(cls_score.sigmoid_(), min=1e-4, max=1-1e-4).unsqueeze(0) # 增加一个纬度
             wh = wh_pred.unsqueeze(0)
             reg = offset_pred.unsqueeze(0)
+            
             dets = ctdet_decode(hm, wh, reg=reg, K=40)
-            dets = post_process(dets, c, s, output_h, output_w, scale=scale_factor)
+            dets = post_process(dets, c, s, output_h, output_w, scale=scale_factor, num_classes=self.num_classes)
             detections.append(dets)
         
-        results = merge_outputs(detections) # 单张图的结果
+        results = merge_outputs(detections, self.num_classes) # 单张图的结果
 
         return results
+
+#num_classes = 80
 
 def gaussian_radius(det_size, min_overlap=0.7):
     height, width = det_size
@@ -607,7 +611,15 @@ def get_3rd_point(a, b):
 
 def ctdet_decode(heat, wh, reg=None, cat_spec_wh=False, K=40):
     batch, cat, height, width = heat.size() # 1， 80, 128, 128
+    
+    #print("batch, cat, height, width\n", batch, cat, height, width)
+   
+    if height * width <= K:
+        K = height * width 
+    #print("k:", K)
+    
     heat = _nms(heat)
+    
     scores, inds, clses, ys, xs = _topk(heat, K=K)
     
     if reg is not None:
@@ -662,7 +674,8 @@ def _tranpose_and_gather_feat(feat, ind):
 
 def _topk(scores, K=40):
     batch, cat, height, width = scores.size() # 1， 80，height, width
-#     print("batch, cat, height, width\n", batch, cat, height, width)
+    #print("batch, cat, height, width\n", batch, cat, height, width)
+    #print("k:", K)
 
     topk_scores, topk_inds = torch.topk(scores.view(batch, cat, -1), K)
 
@@ -680,7 +693,7 @@ def _topk(scores, K=40):
 
     return topk_score, topk_inds, topk_clses, topk_ys, topk_xs
 
-def post_process(dets, c, s, out_height, out_width, scale):
+def post_process(dets, c, s, out_height, out_width, scale, num_classes):
     dets = dets.detach().cpu().numpy()
 #     print("dets", dets) # (1, 100, 6)
 
@@ -688,16 +701,11 @@ def post_process(dets, c, s, out_height, out_width, scale):
 
     dets = ctdet_post_process(
         dets.copy(), [c], [s],
-        out_height, out_width, self.num_classes)
+        out_height, out_width, num_classes)
     
-    for j in range(1, self.num_classes + 1):
+    for j in range(1, num_classes + 1):
         dets[0][j] = np.array(dets[0][j], dtype=np.float32).reshape(-1, 5)
-        #dets[0][j][:, :4] /= scale
-        dets[0][j][:, 0] /= scale[1]
-        dets[0][j][:, 1] /= scale[0]
-        dets[0][j][:, 2] /= scale[1]
-        dets[0][j][:, 3] /= scale[0]
-
+        dets[0][j][:, :4] /= scale
     return dets[0]
 
 def ctdet_post_process(dets, c, s, h, w, num_classes):
@@ -722,28 +730,28 @@ def ctdet_post_process(dets, c, s, h, w, num_classes):
 
     return ret    
   
-def merge_outputs(detections):
+def merge_outputs(detections, num_classes):
 #     print(detections)
     results = {}
     max_per_image = 100
-    for j in range(1,  self.num_classes + 1):
+    for j in range(1, num_classes + 1):
         results[j] = np.concatenate(
             [detection[j] for detection in detections], axis=0).astype(np.float32)
 #         if len(self.scales) > 1 or self.opt.nms:
         results[j] = soft_nms(results[j], Nt=0.5, method=2, threshold=0.01)
 #         print(results)
-    scores = np.hstack([results[j][:, 4] for j in range(1, self.num_classes + 1)])
+    scores = np.hstack([results[j][:, 4] for j in range(1, num_classes + 1)])
 
     if len(scores) > max_per_image:
         kth = len(scores) - max_per_image
         thresh = np.partition(scores, kth)[kth]
-        for j in range(1, self.num_classes + 1):
+        for j in range(1, num_classes + 1):
             keep_inds = (results[j][:, 4] >= thresh)
             results[j] = results[j][keep_inds]
 #     print("after merge out\n", results)
-    return results2coco_boxes(results)
+    return results2coco_boxes(results, num_classes)
 
-def results2coco_boxes(results): 
+def results2coco_boxes(results, num_classes): 
     """Convert detection results to a list of numpy arrays.
 
     Args:

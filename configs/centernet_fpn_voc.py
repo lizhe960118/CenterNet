@@ -21,7 +21,7 @@ model = dict(
         relu_before_extra_convs=True),
     bbox_head=dict(
         type='CenterHead',
-        num_classes=80,
+        num_classes=20,
         in_channels=256,
         stacked_convs=1,
         feat_channels=256,
@@ -54,18 +54,23 @@ test_cfg = dict(
 )
 # dataset settings
 dataset_type = 'CenterFPN_dataset'
-data_root = '/data/lizhe/coco/'
+
+data_root = '/data/lizhe/voc/'
+
 img_norm_cfg = dict(
-        mean=[0.408, 0.447, 0.470], std=[0.289, 0.274, 0.278], to_rgb=True)
+    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], to_rgb=True)
+
 data = dict(
     imgs_per_gpu=6,
     workers_per_gpu=4,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_trainval2014.json',
-        img_prefix=data_root + 'images/trainval2014/',
-        img_scale=(1333, 800),
+        use_coco = False,
+        ann_file=data_root + 'annotations/pascal_trainval0712.json',
+        img_prefix=data_root + 'images/',
+        #img_scale=(1333, 800),
         #img_scale=(800,800),
+        img_scale=(1024, 1024),
         img_norm_cfg=img_norm_cfg,
         size_divisor=31,
         flip_ratio=0.5,
@@ -74,8 +79,9 @@ data = dict(
         with_label=True),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_minival2014.json',
-        img_prefix=data_root + 'images/minival2014/',
+        use_coco = False,
+        ann_file=data_root + 'annotations/pascal_val2012.json',
+        img_prefix=data_root + 'images/',
         img_scale=(1333, 800),
         img_norm_cfg=img_norm_cfg,
         size_divisor=31,
@@ -85,8 +91,9 @@ data = dict(
         with_label=True),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_minival2014.json',
-        img_prefix=data_root + 'images/minival2014/',
+        use_coco = False,
+        ann_file=data_root + 'annotations/pascal_val2012.json',
+        img_prefix=data_root + 'images/',
         img_scale=(1333, 800),
         img_norm_cfg=img_norm_cfg,
         size_divisor=31,
@@ -97,11 +104,7 @@ data = dict(
         test_mode=True))
 # optimizer
 optimizer = dict(type='Adam', lr= 0.001, betas=(0.9, 0.999), eps=1e-8)
-    #type='SGD',
-    #lr=0.01,
-    #momentum=0.9,
-    #weight_decay=0.0001,
-    #paramwise_options=dict(bias_lr_mult=2., bias_decay_mult=0.))
+    
 optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(

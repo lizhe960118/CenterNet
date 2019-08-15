@@ -1,1 +1,1 @@
-python tools/renche_eval.py result_renchefei.pkl config/centernet_hrnet32_renchefei.py
+python tools/renche_eval.py result_renchefei.pkl configs/centernet_hrnet32_renchefei.py

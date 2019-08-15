@@ -58,7 +58,8 @@ def json2result(result_json_file, dataset_json_file):
             if data['image_id'] == image_id:
                 # 表示它是属于这张图的一框
                 x1, y1, w, h = data['bbox']
-                bbox = [x1, y1, x1 + w - 1, y1 + h - 1]
+                score = float(data['score'])
+                bbox = [x1, y1, x1 + w - 1, y1 + h - 1, score]
                 label = int(cat_ids[data['category_id']])
                 cur_result[label].append(bbox)
 
@@ -67,8 +68,10 @@ def json2result(result_json_file, dataset_json_file):
                 bboxes[i] = np.zeros((0, 5), dtype=np.float32)
             else:
                 bboxes[i] = np.array(cur_result[i],dtype=np.float32)
-
+        
+        #print(bboxes)
         results.append(bboxes)
+        #print(results)
         
         if (idx + 1) % 100 == 0:
             print(idx+1, len(img_ids))
