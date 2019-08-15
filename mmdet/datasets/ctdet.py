@@ -308,6 +308,7 @@ class Ctdet(CocoDataset):
             bbox[[0, 2]] = np.clip(bbox[[0, 2]], 0, output_w - 1)
             bbox[[1, 3]] = np.clip(bbox[[1, 3]], 0, output_h - 1)
             h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
+            
             if h > 0 and w > 0:
                 # populate hm based on gd and ct
                 radius = gaussian_radius((math.ceil(h), math.ceil(w)))

@@ -459,27 +459,27 @@ class HRNet2(nn.Module):
 
         return nn.Sequential(*hr_modules), in_channels
 
-    def init_weights(self, pretrained=None):
-        if isinstance(pretrained, str):
-            logger = logging.getLogger()
-            load_checkpoint(self, pretrained, strict=False, logger=logger)
-        elif pretrained is None:
-            for m in self.modules():
-                if isinstance(m, nn.Conv2d):
-                    kaiming_init(m)
-                elif isinstance(m, (_BatchNorm, nn.GroupNorm)):
-                    constant_init(m, 1)
-
-            if self.zero_init_residual:
-                for m in self.modules():
-                    if isinstance(m, Bottleneck):
-                        constant_init(m.norm3, 0)
-                    elif isinstance(m, BasicBlock):
-                        constant_init(m.norm2, 0)
-        else:
-            raise TypeError('pretrained must be a str or None')
 #     def init_weights(self, pretrained=None):
-#         print('initializing weights')
+#         if isinstance(pretrained, str):
+#             logger = logging.getLogger()
+#             load_checkpoint(self, pretrained, strict=False, logger=logger)
+#         elif pretrained is None:
+#             for m in self.modules():
+#                 if isinstance(m, nn.Conv2d):
+#                     kaiming_init(m)
+#                 elif isinstance(m, (_BatchNorm, nn.GroupNorm)):
+#                     constant_init(m, 1)
+
+#             if self.zero_init_residual:
+#                 for m in self.modules():
+#                     if isinstance(m, Bottleneck):
+#                         constant_init(m.norm3, 0)
+#                     elif isinstance(m, BasicBlock):
+#                         constant_init(m.norm2, 0)
+#         else:
+#             raise TypeError('pretrained must be a str or None')
+    def init_weights(self, pretrained=None):
+        print('initializing weights')
 
     def forward(self, x):
 

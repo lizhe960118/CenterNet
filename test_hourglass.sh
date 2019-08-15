@@ -1,5 +1,5 @@
 #!/bin/bash
-python tools/test.py configs/voc_centernet_hourglass.py \
-    /data/lizhe/model/hourglass_cache/latest.pth \
+python tools/visdrone_test_1.py configs/visdrone_centernet_hourglass.py \
+    hourglass_cache/epoch_100.pth \
     --out results.pkl \
     --eval bbox

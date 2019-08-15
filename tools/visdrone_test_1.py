@@ -132,7 +132,7 @@ def parse_args():
 
 
 def main():
-#     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     args = parse_args()
 
     assert args.out or args.show, \

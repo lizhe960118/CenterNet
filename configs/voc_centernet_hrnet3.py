@@ -132,21 +132,25 @@ data = dict(
 optimizer = dict(type='Adam', lr=0.00025)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
+# lr_config = dict(
+#     policy='step',
+#     warmup='linear',
+#     warmup_iters=500,
+#     warmup_ratio=1.0 / 3,
+#     step=[45, 50])
 lr_config = dict(
     policy='step',
-    warmup='linear',
+    warmup='constant',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step = [80, 90],
-    gamma = 0.1
-)
+    step=[90, 120])
 #lr_config = dict(
 #    policy='poly',
 #    warmup='constant',
 #    warmup_iters=500,
 #    warmup_ratio=1.0 / 3,
 #    power=1., 
-#    min_lr=1e-10)
+
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
@@ -157,12 +161,12 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 100
+total_epochs = 120
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 # work_dir = './work_dirs/faster_rcnn_r50_fpn_1x'
 work_dir = './work_dirs/centernet_hg'
 load_from = None
-#resume_from = None
-resume_from = '/data/lizhe/model/hr3_cache_1/epoch_44.pth'
+resume_from = None
+# resume_from = 'hr3_cache/epoch_66.pth'
 workflow = [('train', 1)]
