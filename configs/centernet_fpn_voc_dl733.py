@@ -14,10 +14,12 @@ model = dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
-        start_level=1,
-        add_extra_convs=True,
+        start_level=1, # 从P2开始
+        #start_level=0,
+        add_extra_convs=True, # 使用卷积从P5到P6
+        #extra_convs_on_inputs=True, # use origin image C5
         extra_convs_on_inputs=False,  # use P5
-        num_outs=5,
+        num_outs=5, # 输出5层
         relu_before_extra_convs=True),
     bbox_head=dict(
         type='CenterHead',
@@ -61,8 +63,8 @@ img_norm_cfg = dict(
     mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], to_rgb=True)
 
 data = dict(
-    imgs_per_gpu=4,
-    workers_per_gpu=1,
+    imgs_per_gpu=8,
+    workers_per_gpu=4,
     train=dict(
         type=dataset_type,
         use_coco = False,
@@ -112,7 +114,7 @@ lr_config = dict(
     warmup='constant',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[8,11])
+    step=[35, 45])
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
@@ -123,7 +125,8 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 12
+total_epochs = 50
+# device_ids = range(8)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/center_fpn_r50_caffe_fpn_gn_1x_4gpu'

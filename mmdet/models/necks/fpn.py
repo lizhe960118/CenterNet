@@ -14,7 +14,7 @@ class FPN(nn.Module):
                  in_channels,
                  out_channels,
                  num_outs,
-                 start_level=0,
+                 start_level=0, # 1
                  end_level=-1,
                  add_extra_convs=False,
                  extra_convs_on_inputs=True,
@@ -24,31 +24,31 @@ class FPN(nn.Module):
                  activation=None):
         super(FPN, self).__init__()
         assert isinstance(in_channels, list)
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.num_ins = len(in_channels)
-        self.num_outs = num_outs
+        self.in_channels = in_channels # [256, 512, 1024, 2048]
+        self.out_channels = out_channels # 256
+        self.num_ins = len(in_channels) # 4
+        self.num_outs = num_outs # 5
         self.activation = activation
         self.relu_before_extra_convs = relu_before_extra_convs
         self.fp16_enabled = False
 
         if end_level == -1:
-            self.backbone_end_level = self.num_ins
+            self.backbone_end_level = self.num_ins # 4
             assert num_outs >= self.num_ins - start_level
         else:
             # if end_level < inputs, no extra level is allowed
             self.backbone_end_level = end_level
             assert end_level <= len(in_channels)
             assert num_outs == end_level - start_level
-        self.start_level = start_level
-        self.end_level = end_level
+        self.start_level = start_level # 1
+        self.end_level = end_level # -1
         self.add_extra_convs = add_extra_convs
         self.extra_convs_on_inputs = extra_convs_on_inputs
 
         self.lateral_convs = nn.ModuleList()
         self.fpn_convs = nn.ModuleList()
 
-        for i in range(self.start_level, self.backbone_end_level):
+        for i in range(self.start_level, self.backbone_end_level): # 1～4
             l_conv = ConvModule(
                 in_channels[i],
                 out_channels,
@@ -71,11 +71,11 @@ class FPN(nn.Module):
             self.fpn_convs.append(fpn_conv)
 
         # add extra conv layers (e.g., RetinaNet)
-        extra_levels = num_outs - self.backbone_end_level + self.start_level
+        extra_levels = num_outs - self.backbone_end_level + self.start_level # 5 - 4 + 1
         if add_extra_convs and extra_levels >= 1:
             for i in range(extra_levels):
                 if i == 0 and self.extra_convs_on_inputs:
-                    in_channels = self.in_channels[self.backbone_end_level - 1]
+                    in_channels = self.in_channels[self.backbone_end_level - 1] # backbone最后一层的in_channels
                 else:
                     in_channels = out_channels
                 extra_fpn_conv = ConvModule(
@@ -107,7 +107,7 @@ class FPN(nn.Module):
         ]
 
         # build top-down path
-        used_backbone_levels = len(laterals)
+        used_backbone_levels = len(laterals) # 3
         for i in range(used_backbone_levels - 1, 0, -1):
             laterals[i - 1] += F.interpolate(
                 laterals[i], scale_factor=2, mode='nearest')
@@ -127,13 +127,13 @@ class FPN(nn.Module):
             # add conv layers on top of original feature maps (RetinaNet)
             else:
                 if self.extra_convs_on_inputs:
-                    orig = inputs[self.backbone_end_level - 1]
-                    outs.append(self.fpn_convs[used_backbone_levels](orig))
+                    orig = inputs[self.backbone_end_level - 1] # the last level in backbone
+                    outs.append(self.fpn_convs[used_backbone_levels](orig)) # fpn_convs[3]
                 else:
                     outs.append(self.fpn_convs[used_backbone_levels](outs[-1]))
-                for i in range(used_backbone_levels + 1, self.num_outs):
+                for i in range(used_backbone_levels + 1, self.num_outs): # 4, 5
                     if self.relu_before_extra_convs:
-                        outs.append(self.fpn_convs[i](F.relu(outs[-1])))
+                        outs.append(self.fpn_convs[i](F.relu(outs[-1]))) # fpn_convs[4]
                     else:
                         outs.append(self.fpn_convs[i](outs[-1]))
         return tuple(outs)

@@ -28,7 +28,7 @@ if __name__ == '__main__':
     cocoGt = COCO(cocoGt_file)#取得标注集中coco json对象
 
 #     cocoDt_file = "./results/CenterNet-104/250000/testing/results.json"#结果json文件
-    cocoDt_file = "results.json"
+    cocoDt_file = "hrnet_result.json"
     cocoDt = cocoGt.loadRes(cocoDt_file)#取得结果集中image json对象
 
     imgIds = get_img_id(cocoDt_file)

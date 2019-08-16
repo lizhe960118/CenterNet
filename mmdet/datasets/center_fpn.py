@@ -90,7 +90,7 @@ class CenterFPN_dataset(CocoDataset):
     def __init__(self, use_coco=True, **kwargs):
         super(CenterFPN_dataset, self).__init__(**kwargs)
         self.use_coco = use_coco
-        self.CLASSES = self.CLASSES_1 if use_coco else self.CLASSES_2
+        self.CLASSES = self.CLASSES_2 if use_coco else self.CLASSES_1
 #         print(kwargs)
 
     def _get_border(self, border, size): # 128, 512
