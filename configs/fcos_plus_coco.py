@@ -59,11 +59,11 @@ test_cfg = dict(
     max_per_img=100)
 # dataset settings
 dataset_type = 'CocoDataset'
-data_root = 'data/lizhe/coco/'
+data_root = '/data/lizhe/coco/'
 img_norm_cfg = dict(
     mean=[102.9801, 115.9465, 122.7717], std=[1.0, 1.0, 1.0], to_rgb=False)
 data = dict(
-    imgs_per_gpu=4,
+    imgs_per_gpu=3,
     workers_per_gpu=4,
     train=dict(
         type=dataset_type,

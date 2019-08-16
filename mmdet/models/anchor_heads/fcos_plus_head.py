@@ -53,7 +53,7 @@ class FCOS_PLUS_Head(nn.Module):
         self.conv_cfg = conv_cfg
         self.norm_cfg = norm_cfg
         self.fp16_enabled = False
-        self.all_level_points = None
+        self.num_points_per = None
         self.center_sample = center_sample
         self.radius = radius
 
@@ -135,7 +135,7 @@ class FCOS_PLUS_Head(nn.Module):
         all_level_points = self.get_points(featmap_sizes, bbox_preds[0].dtype,
                                            bbox_preds[0].device)
         
-        self.all_level_points = all_level_points
+        self.num_points_per = [center.size(0) for center in all_level_points]
 
         labels, bbox_targets = self.fcos_target(all_level_points, gt_bboxes,
                                                 gt_labels)
@@ -377,7 +377,7 @@ class FCOS_PLUS_Head(nn.Module):
             inside_gt_bbox_mask = self.get_sample_region(
                     gt_bboxes,
                     self.strides,
-                    self.all_level_points,
+                    self.num_points_per,
                     gt_xs,
                     gt_ys,
                     radius=self.radius)
@@ -413,6 +413,8 @@ class FCOS_PLUS_Head(nn.Module):
         if center_x[..., 0].sum() == 0:
             return gt_xs.new_zeros(gt_xs.shape, dtype=torch.uint8)
         beg = 0
+        #beg = torch.tensor(0, dtype=torch.uint8)
+        
         for level, n_p in enumerate(num_points_per):
             end = beg + n_p
             stride = strides[level] * radius
