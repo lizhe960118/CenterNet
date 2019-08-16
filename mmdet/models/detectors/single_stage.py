@@ -68,3 +68,8 @@ class SingleStageDetector(BaseDetector):
 
     def aug_test(self, imgs, img_metas, rescale=False):
         raise NotImplementedError
+        
+    def forward_dummy(self, img):
+        x = self.extract_feat(img)
+        x = self.bbox_head(x)
+        return x

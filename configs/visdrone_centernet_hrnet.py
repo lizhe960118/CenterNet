@@ -126,18 +126,21 @@ optimizer = dict(type='Adam', lr=0.00025)
 # optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 optimizer_config = dict(grad_clip=None)
 # learning policy
-# lr_config = dict(
-#     policy='step',
-#     warmup='linear',
-#     warmup_iters=500,
-#     warmup_ratio=1.0 / 3,
-#     step=[45, 50])
 lr_config = dict(
     policy='step',
-    warmup='constant',
+    warmup='linear',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[90, 100])
+    step=[45, 60],
+    gamma = 0.5
+)
+# lr_config = dict(
+#     policy='poly',
+#     warmup='constant',
+#     warmup_iters=500,
+#     warmup_ratio=1.0 / 3,
+#     power=1., 
+#     min_lr=1e-5)
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
@@ -148,7 +151,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 100
+total_epochs = 70
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 # work_dir = './work_dirs/faster_rcnn_r50_fpn_1x'

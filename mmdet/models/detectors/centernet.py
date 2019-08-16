@@ -79,4 +79,7 @@ class CenterNet(TwoStageDetector):
 #                                self.backbone.heads['hm'] + 1)
 
         return results
-     
+    
+    def forward_dummy(self, img):
+        x = self.backbone(img)
+        return x
