@@ -1,4 +1,4 @@
 #!/bin/bash
-python tools/train_1.py \
+python tools/train.py \
     configs/centernet_fpn_voc_dl733.py \
-    --work_dir /hdd/lizhe/centernet_fpn_cache --gpus 1
+    --work_dir /hdd/lizhe/centernet_fpn_cache --gpus 2

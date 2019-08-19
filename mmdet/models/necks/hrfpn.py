@@ -68,9 +68,10 @@ class HRFPN(nn.Module):
             self.pooling = F.avg_pool2d
 
     def init_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                caffe2_xavier_init(m)
+        print("init weights in hrfpn")
+#         for m in self.modules():
+#             if isinstance(m, nn.Conv2d):
+#                 caffe2_xavier_init(m)
 
     def forward(self, inputs):
         assert len(inputs) == self.num_ins

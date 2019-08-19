@@ -100,18 +100,21 @@ class CenterHead(nn.Module):
         self.scales = nn.ModuleList([Scale(1.0) for _ in self.strides])
 
     def init_weights(self):
-        #for m in self.cls_convs:
-        #    normal_init(m.conv, std=0.01)
-        #for m in self.reg_convs:
-        #    normal_init(m.conv, std=0.01)
+#         for m in self.cls_convs:
+#             normal_init(m.conv, std=0.01)
+#         for m in self.wh_convs:
+#             normal_init(m.conv, std=0.01)
+#         for m in self.offset_convs:
+#             normal_init(m.conv, std=0.01)
+            
         #bias_hm = bias_init_with_prob(0.01) # 这里的初始化？
         #normal_init(self.center_hm, std=0.01, bias=bias_hm)
-        #normal_init(self.center_hm, std=0.01)
         self.center_hm.bias.data.fill_(-2.19)
-        #normal_init(self.center_wh, std=0.01)
         nn.init.constant_(self.center_wh.bias, 0)
         nn.init.constant_(self.center_offset.bias, 0)
-        #normal_init(self.center_offset, std=0.01)
+#         normal_init(self.center_hm, std=0.01)
+#         normal_init(self.center_wh, std=0.01)
+#         normal_init(self.center_offset, std=0.01)
 
     def forward(self, feats):
         return multi_apply(self.forward_single, feats, self.scales)
@@ -165,9 +168,9 @@ class CenterHead(nn.Module):
         flatten_cls_scores = [
             cls_score.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
             for cls_score in cls_scores
-        ]
+        ] # cls_scores(num_levels, batch_size, 80, h, w)  => (num_levels, batch_size * w * h, 80)
         flatten_wh_preds = [
-            wh_pred.permute(0, 2, 3, 1).reshape(-1, 2) # batchsize, h, w, 2
+            wh_pred.permute(0, 2, 3, 1).reshape(-1, 2) # batchsize, h, w, 2 => batchsize, h, w, 2
             for wh_pred in wh_preds
         ]
         flatten_offset_preds = [
@@ -181,7 +184,7 @@ class CenterHead(nn.Module):
        
         # targets
         flatten_heatmaps = torch.cat(heatmaps)
-        flatten_wh_targets = torch.cat(wh_targets) # torch.Size([13343, 2])
+        flatten_wh_targets = torch.cat(wh_targets) # torch.Size([all_level_points, 2])
         flatten_offset_targets = torch.cat(offset_targets)
 
         # repeat points to align with bbox_preds
@@ -285,7 +288,7 @@ class CenterHead(nn.Module):
         num_levels = len(self.featmap_sizes)
         for i in range(num_levels):
             concat_lvl_heatmaps.append(
-                torch.cat([heatmaps[i] for heatmaps in heatmaps_list]))
+                torch.cat([heatmaps[i] for heatmaps in heatmaps_list])) # (num_levels, batch_size * w * h, 80)
             concat_lvl_wh_targets.append(
                 torch.cat(
                     [wh_targets[i] for wh_targets in wh_targets_list]))
@@ -335,9 +338,9 @@ class CenterHead(nn.Module):
                 bbox[[0, 2]] = img_meta['width'] - bbox[[2, 0]] - 1
                 
             # condition: in the regress_ranges
-            h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
-            max_h_w = max(h, w) / 2
-            #max_h_w = max(h, w) * 2 # 最长边为32在P2
+            origin_h, origin_w = bbox[3] - bbox[1], bbox[2] - bbox[0]
+            #max_h_w = max(h, w) / 2
+            max_h_w = max(origin_h, origin_w) * 2 # 最长边为32在P2
             # 根据max_h_w在哪一层将output设置为当前层的
             index_level = 0
             for i in range(num_levels):
@@ -362,23 +365,39 @@ class CenterHead(nn.Module):
             #print(h, w)
             # 转换到当层
             if h > 0 and w > 0:
-                radius = gaussian_radius((math.ceil(h), math.ceil(w)))
-                radius = max(0, int(radius))
+                #radius = gaussian_radius((math.ceil(h), math.ceil(w)))
+                #radius = max(0, int(radius))
                 ct = np.array(
                   [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
                 #print(ct)
                 ct_int = ct.astype(np.int32)
-                draw_umich_gaussian(hm[cls_id], ct_int, radius)
+                hm[cls_id, ct_int[1], ct_int[0]] = 1
+                
+                if (ct_int[1] - 1) > 0:
+                    hm[cls_id, ct_int[1] - 1, ct_int[0]] = 0.5
+                if (ct_int[0] - 1) > 0:
+                    hm[cls_id, ct_int[1], ct_int[0] - 1] = 0.5
+                if (ct_int[1] + 1) < output_h:
+                    hm[cls_id, ct_int[1] + 1, ct_int[0]] = 0.5
+                if (ct_int[0] + 1) < output_w:
+                    hm[cls_id, ct_int[1], ct_int[0] + 1] = 0.5
+                #draw_umich_gaussian(hm[cls_id], ct_int, radius)
 
                 h, w = 1. * h, 1. * w
                 offset_count = ct - ct_int # h, w
                 # ct_int即表明在featmap的位置 ct_int[1] * output_w + ct_int[0] 
                 # TODO:如果当前位置有物体的中心，现在是直接覆盖
                 # 这里设置监督信号，第1位表示w，第2位表示h
-                wh[ct_int[1], ct_int[0], 0] = w # output_h, output_w <= y, x
-                wh[ct_int[1], ct_int[0], 1] = h
+                # 这里对featmap进行缩放？
+#                 wh[ct_int[1], ct_int[0], 0] = w / output_w# output_h, output_w <= y, x
+#                 wh[ct_int[1], ct_int[0], 1] = h / output_h
+#                 offset[ct_int[1], ct_int[0], 0] = offset_count[0] / output_w
+#                 offset[ct_int[1], ct_int[0], 0] = offset_count[1] / output_h
+                wh[ct_int[1], ct_int[0], 0] = w 
+                wh[ct_int[1], ct_int[0], 1] = h 
                 offset[ct_int[1], ct_int[0], 0] = offset_count[0]
                 offset[ct_int[1], ct_int[0], 0] = offset_count[1]
+            
             
             heatmaps_targets[index_level] = hm
             wh_targets[index_level] = wh
@@ -475,7 +494,11 @@ class CenterHead(nn.Module):
             output_h, output_w = featmap_size
             #实际上得到了每一层的hm, wh, offset
             hm = torch.clamp(cls_score.sigmoid_(), min=1e-4, max=1-1e-4).unsqueeze(0) # 增加一个纬度
-            wh = wh_pred.unsqueeze(0)
+            #wh_pred[0, :, :] = wh_pred[0, :, :] * output_w
+            #wh_pred[1, :, :] = wh_pred[1, :, :] * output_h # 2, output_h, output_w
+            wh = wh_pred.unsqueeze(0) # 这里需要乘以featuremap的尺度
+            #offset_pred[0, : ,:] =  offset_pred[0, : ,:] * output_w
+            #offset_pred[1, : ,:] =  offset_pred[1, : ,:] * output_h
             reg = offset_pred.unsqueeze(0)
             
             dets = ctdet_decode(hm, wh, reg=reg, K=40)
