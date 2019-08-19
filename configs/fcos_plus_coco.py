@@ -1,7 +1,7 @@
 # model settings
 model = dict(
     type='FCOS',
-    pretrained='open-mmlab://resnet50_caffe',
+    #pretrained='open-mmlab://resnet50_caffe',
     backbone=dict(
         type='ResNet',
         depth=50,
@@ -63,13 +63,14 @@ data_root = '/data/lizhe/coco/'
 img_norm_cfg = dict(
     mean=[102.9801, 115.9465, 122.7717], std=[1.0, 1.0, 1.0], to_rgb=False)
 data = dict(
-    imgs_per_gpu=3,
+    imgs_per_gpu=2,
     workers_per_gpu=4,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_trainval2014.json',
         img_prefix=data_root + 'images/trainval2014/',
         img_scale=(1333, 800),
+        #img_scale = [(1333, 640), (1333, 800)]
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
         flip_ratio=0.5,
@@ -90,7 +91,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_minival2014.json',
-        img_prefix=data_root + 'images/minival_2014/',
+        img_prefix=data_root + 'images/minival2014/',
         img_scale=(1333, 800),
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
@@ -113,7 +114,7 @@ lr_config = dict(
     warmup='constant',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[8, 11])
+    step=[9, 15])
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
@@ -124,11 +125,12 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 12
+total_epochs = 17
 device_ids = range(8)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = '/data/lizhe/model/fcos_plus_r50_caffe_fpn_gn_1x_8gpu'
 load_from = None
-resume_from = None
+resume_from = '/data/lizhe/model/fcos_plus_2_cache/epoch_12.pth'
+#resume_from = None
 workflow = [('train', 1)]
