@@ -297,31 +297,47 @@ class RenCheDataset(CocoDataset):
         img = cv2.imread(img_path)
         height, width = img.shape[0], img.shape[1]
         
-        c = np.array([img.shape[1] / 2., img.shape[0] / 2.], dtype=np.float32)
-        
-        s = max(img.shape[0], img.shape[1]) * 1.0
-        input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
-        
-        trans_input = get_affine_transform(c, s, 0, [input_w, input_h])
-        
-        inp = cv2.warpAffine(img, trans_input,
-                             (input_w, input_h),
-                             flags=cv2.INTER_LINEAR)
-        
-        inp = (inp.astype(np.float32) / 255.)
-        inp = (inp - self.img_norm_cfg['mean']) / self.img_norm_cfg['std']
-        inp = inp.transpose(2, 0, 1) # reshape(1, 3, inp_height, inp_width)
+        origin_input_h = (height | self.size_divisor) + 1
+        origin_input_w = (width | self.size_divisor) + 1
 
-        output_h = input_h // 4
-        output_w = input_w // 4
-#         print(output_h, output_w)
+        #c = np.array([img.shape[1] / 2., img.shape[0] / 2.], dtype=np.float32)
         
-        meta = {'c': c, 's': s, 
-                'out_height': output_h, 
-                'out_width': output_w}
+        #s = max(img.shape[0], img.shape[1]) * 1.0
         
+        inps = []
+        img_metas = []
+        
+        scales = [0.6, 0.8, 1.0, 1.2, 1.4]
+        for scale in scales:
+            #input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
+            
+            input_h = origin_input_h * scale 
+            input_w = origin_input_w * scale
+            s = np.array([input_w, input_h], dtype=np.float32)
+     
+
+            trans_input = get_affine_transform(c, s, 0, [input_w, input_h])
+
+            inp = cv2.warpAffine(img, trans_input,
+                                 (input_w, input_h),
+                                 flags=cv2.INTER_LINEAR)
+
+            inp = (inp.astype(np.float32) / 255.)
+            inp = (inp - self.img_norm_cfg['mean']) / self.img_norm_cfg['std']
+            inp = inp.transpose(2, 0, 1) # reshape(1, 3, inp_height, inp_width)
+
+            output_h = input_h // 4
+            output_w = input_w // 4
+    #         print(output_h, output_w)
+
+            meta = {'c': c, 's': s, 
+                    'out_height': output_h, 
+                    'out_width': output_w,
+                    'scale': scale}
+            inps.append(inp)
+            img_metas.append(meta)
 #         print("after pre_process:\n", inp.shape, meta)
         
-        ret = {"img": inp, "img_meta": meta}
+        ret = {"img": inps, "img_meta": img_metas}
         return ret
 
