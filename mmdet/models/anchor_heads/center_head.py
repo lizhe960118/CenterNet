@@ -133,7 +133,7 @@ class CenterHead(nn.Module):
         wh_pred = self.center_wh(wh_feat)
         
         for offset_layer in self.offset_convs:
-            offset_feat = wh_layer(offset_feat)
+            offset_feat = offset_layer(offset_feat)
         offset_pred = self.center_offset(offset_feat)
         
         return cls_score, wh_pred, offset_pred
@@ -206,7 +206,7 @@ class CenterHead(nn.Module):
         flatten_cls_scores = torch.clamp(flatten_cls_scores.sigmoid_(), min=1e-4, max=1-1e-4)
         loss_hm = self.loss_hm(flatten_cls_scores, flatten_heatmaps)
         
-        pos_wh_targets = flatten_offset_targets[center_inds]
+        pos_wh_targets = flatten_wh_targets[center_inds]
         #print(pos_wh_targets.shape)
         pos_wh_preds = flatten_wh_preds[center_inds]
         

@@ -63,7 +63,7 @@ model = dict(
         regress_ranges=((-1, 32),(32, 64), (64, 128), (128, 256), (256, 1e8)),
         loss_hm=dict(
             type='CenterFocalLoss'),
-        loss_wh = dict(type="L1Loss",loss_weight=1.0),
+        loss_wh = dict(type="L1Loss",loss_weight=0.1),
         loss_offset = dict(type="L1Loss",loss_weight=1.0))
 )
 # training and testing settings
@@ -164,5 +164,6 @@ log_level = 'INFO'
 work_dir = './work_dirs/center_fpn_r50_caffe_fpn_gn_1x_4gpu'
 #load_from = 'pre_train_fpn.pth'
 load_from = None
-resume_from = None
+# resume_from = None
+resume_from = '/hdd/lizhe/centernet_fpn_cache/epoch_2.pth'
 workflow = [('train', 1)]
