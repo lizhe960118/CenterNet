@@ -79,8 +79,9 @@ data = dict(
         ann_file= data_root + 'deepv_49w_src/' + 'test.json',
         img_prefix=data_root + 'deepv_49w_src/',
 #         img_scale=(1333, 800),
+	img_scale = (2048, 2048),
 #         img_scale=(800, 800),
-        img_scale=(512, 512),
+#        img_scale=(512, 512),
         img_norm_cfg=img_norm_cfg,
 #       size_divisor=31,
 #         flip_ratio=0,
@@ -96,7 +97,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step = [80, 90],
+    step = [4],
     gamma = 0.1
 )
 #lr_config = dict(
@@ -116,7 +117,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 100
+total_epochs = 5
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 # work_dir = './work_dirs/faster_rcnn_r50_fpn_1x'

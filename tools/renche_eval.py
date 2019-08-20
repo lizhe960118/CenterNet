@@ -54,7 +54,7 @@ def main():
     parser.add_argument(
         '--iou-thr',
         type=float,
-        default=0.95,
+        default=0.5,
         help='IoU threshold for evaluation')
     args = parser.parse_args()
     cfg = mmcv.Config.fromfile(args.config)

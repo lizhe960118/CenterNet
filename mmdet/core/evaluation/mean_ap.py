@@ -340,7 +340,8 @@ def print_map_summary(mean_ap, results, dataset=None):
     num_scales = len(results[0]['ap']) if isinstance(results[0]['ap'],
                                                      np.ndarray) else 1
     num_classes = len(results)
-
+    #num_classes = 4
+    #print(num_classes)
     recalls = np.zeros((num_scales, num_classes), dtype=np.float32)
     precisions = np.zeros((num_scales, num_classes), dtype=np.float32)
     aps = np.zeros((num_scales, num_classes), dtype=np.float32)
@@ -366,6 +367,8 @@ def print_map_summary(mean_ap, results, dataset=None):
     for i in range(num_scales):
         table_data = [header]
         for j in range(num_classes):
+        #for j in range(4):
+            #print(i, j)
             row_data = [
                 label_names[j], num_gts[i, j], results[j]['num_dets'],
                 '{:.3f}'.format(recalls[i, j]), '{:.3f}'.format(
