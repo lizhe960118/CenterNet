@@ -33,7 +33,7 @@ class MatrixCenterHead(nn.Module):
                               5:3,  6:4,   7:5,   8:6,
                               10:7, 11:8,  12:9,  13:10, 14:11,
                                     16:12, 17:13, 18:14, 19:15,
-                                           22:16, 23:17, 24:18} # use i * 5 +  j to get the featmap
+                                           22:16, 23:17, 24:18}, # use i * 5 +  j to get the featmap
                  loss_hm = dict(
                      type="CenterFocalLoss"
                  ), # 这里实现 CenterFocalLoss

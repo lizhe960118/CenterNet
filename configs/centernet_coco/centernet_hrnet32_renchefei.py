@@ -40,7 +40,7 @@ test_cfg = dict(a = 5)
 
 dataset_type = 'RenCheDataset'
 
-data_root = '/data/lizhe/'
+data_root = '/root/train/trainset/1/'
 
 img_norm_cfg = dict(
     mean=[0.408, 0.447, 0.470], std=[0.289, 0.274, 0.278], to_rgb=True)

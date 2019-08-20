@@ -19,7 +19,7 @@ import math
 
 import torch
 import torch.nn as nn
-from from mmdet.ops import DeformConv as DCN
+from mmdet.ops import DeformConv as DCN
 import torch.utils.model_zoo as model_zoo
 
 BN_MOMENTUM = 0.1

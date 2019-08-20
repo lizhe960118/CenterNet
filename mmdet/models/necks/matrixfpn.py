@@ -75,7 +75,7 @@ class MatrixFPN(nn.Module):
                      padding=1,
                      stride = [1, 2],
                      conv_cfg=self.conv_cfg,
-                     activation=None)
+                     activation=None))
         self.width_half_dict = {1:0, 2:1, 7:2, 8:3, 13:4, 14:5, 19:6} # use i, j index to get convs
                  
         self.height_half_convs = nn.ModuleList()
@@ -88,8 +88,8 @@ class MatrixFPN(nn.Module):
                      padding=1,
                      stride = [2, 1],
                      conv_cfg=self.conv_cfg,
-                     activation=None)
-         self.height_half_dict = {5:0, 10:1, 11:2, 16:3, 17:4, 22:5, 23:6} 
+                     activation=None))
+        self.height_half_dict = {5:0, 10:1, 11:2, 16:3, 17:4, 22:5, 23:6} 
         
     def init_weights(self):
         print("init weights in matrix fpn")
@@ -111,6 +111,7 @@ class MatrixFPN(nn.Module):
         
         #outputs = [0 for k in range(self.layer_i * self.layer_j)]
         outputs = [[0, 0, 0, 1, 1], [0, 0, 0, 0, 1], [0, 0, 0, 0, 0], [1, 0, 0, 0, 0],  [1, 1, 0, 0, 0]]
+        
         for i in range(self.layer_i):
             for j in range(self.layer_j):
                 if outputs[i][j] == 1:
@@ -123,10 +124,10 @@ class MatrixFPN(nn.Module):
                     outputs[i][j] = self.height_half_convs[self.height_half_dict[i * self.layer_j + j]](outputs[i-1][j])
          
         final_outputs = []
-         for i in range(self.layer_i):
+        for i in range(self.layer_i):
             for j in range(self.layer_j):
-                 if outputs[i][j] == 1:
-                    continue
-                 final_outputs.append(outputs[i][j])
+                if outputs[i][j] == 1:
+                   continue
+                final_outputs.append(outputs[i][j])
             
         return tuple(final_outputs)
