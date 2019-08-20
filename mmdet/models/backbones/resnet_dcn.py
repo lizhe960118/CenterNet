@@ -131,6 +131,7 @@ def fill_fc_weights(layers):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
 
+@BACKBONES.register_module
 class ResNetDCN(nn.Module):
     
     resnet_spec = {18: (BasicBlock, [2, 2, 2, 2]),
@@ -139,7 +140,7 @@ class ResNetDCN(nn.Module):
                101: (Bottleneck, [3, 4, 23, 3]),
                152: (Bottleneck, [3, 8, 36, 3])}
 
-    def __init__(self, depth, deconv, out_indices):
+    def __init__(self, depth, deconv = True, out_indices=(0, 1, 2, 3)):
         super(ResNetDCN, self).__init__()
         self.inplanes = 64
         self.depth = depth
@@ -276,7 +277,9 @@ class ResNetDCN(nn.Module):
      
         return outs
 
-    def init_weights(self, num_layers):
+    def init_weights(self):
+        num_layers = self.depth
+        print("init weights in resnet dcn")
         if 1:
             url = model_urls['resnet{}'.format(num_layers)]
             pretrained_state_dict = model_zoo.load_url(url)
