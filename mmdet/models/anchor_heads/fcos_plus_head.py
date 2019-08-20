@@ -19,9 +19,8 @@ class FCOS_PLUS_Head(nn.Module):
                  feat_channels=256,
                  stacked_convs=4,
                  strides=(4, 8, 16, 32, 64),
-                 #regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512),
-                 #                (512, INF)),
-                 regress_ranges=((-1, 32), (32, 64), (64, 128), (128, 256), (256, INF)),
+                 regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512),
+                                 (512, INF)),
                  center_sample = True,
                  radius = 1,
                  loss_cls=dict(

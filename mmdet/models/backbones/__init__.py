@@ -7,5 +7,6 @@ from .dla import DLA
 from .hrnet2 import HRNet2
 from .hrnet3 import HRNet3
 from .hrnet4 import HRNet4
+from .dla2 import DLA2
 
-__all__ = ['ResNet', 'make_res_layer', 'ResNeXt', 'SSDVGG', 'HRNet', 'HourglassNet', 'DLA', 'HRNet2', 'HRNet3', 'HRNet4']
+__all__ = ['ResNet', 'make_res_layer', 'ResNeXt', 'SSDVGG', 'HRNet', 'HourglassNet', 'DLA', 'HRNet2', 'HRNet3', 'HRNet4', 'DLA2']

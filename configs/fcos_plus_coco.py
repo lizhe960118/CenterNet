@@ -14,8 +14,8 @@ model = dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
-        #start_level=1,
-        start_level=0, # P2, P3, P4, P5, P6
+        start_level=1,
+        #start_level=0, # P2, P3, P4, P5, P6
         add_extra_convs=True,
         extra_convs_on_inputs=False,  # use P5
         num_outs=5,
@@ -26,8 +26,9 @@ model = dict(
         in_channels=256,
         stacked_convs=4,
         feat_channels=256,
-        #strides=[8, 16, 32, 64, 128],
-        strides=[4, 8, 16, 32, 64],
+        strides=[8, 16, 32, 64, 128],
+        #strides=[4, 8, 16, 32, 64],
+        #regress_ranges=((-1, 32), (32, 64), (64, 128), (128, 256), (256, 1e8)),
         center_sample = True,
         radius = 1,
         loss_cls=dict(
@@ -114,7 +115,7 @@ lr_config = dict(
     warmup='constant',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[9, 15])
+    step=[16, 22])
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
@@ -125,12 +126,12 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 17
+total_epochs = 24
 device_ids = range(8)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = '/data/lizhe/model/fcos_plus_r50_caffe_fpn_gn_1x_8gpu'
 load_from = None
-resume_from = '/data/lizhe/model/fcos_plus_2_cache/epoch_12.pth'
-#resume_from = None
+#resume_from = '/data/lizhe/model/fcos_plus_cache_2/epoch_1.pth'
+resume_from = None
 workflow = [('train', 1)]
