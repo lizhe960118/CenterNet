@@ -99,35 +99,43 @@ class MatrixFPN(nn.Module):
 
     def forward(self, inputs):
         assert len(inputs) == self.num_ins
-        out = [inputs[0]]
+        out = inputs[0]
         
         out = self.reduction_conv(out) # backbone output
         
-        diagonal_layer_outputs = []
+        diagonal_outputs = []
 
         for i in range(self.num_outs):
             out = self.fpn_convs[i](out)
             diagonal_outputs.append(out)
         
         #outputs = [0 for k in range(self.layer_i * self.layer_j)]
-        outputs = [[0, 0, 0, 1, 1], [0, 0, 0, 0, 1], [0, 0, 0, 0, 0], [1, 0, 0, 0, 0],  [1, 1, 0, 0, 0]]
+        output_flags = [[0, 0, 0, 1, 1], [0, 0, 0, 0, 1], [0, 0, 0, 0, 0], [1, 0, 0, 0, 0],  [1, 1, 0, 0, 0]]
         
+        #conv_map = {       1:0,   2:1,
+        #             5:0,         7:4,   8:5,   
+        #             10:3, 11:4,         13:9,  14:10,
+        #                   16:8, 17:9,          19:14,
+        #                         22:13,  23:14}
+        conv_map = {1:0, 2:1, 5:0, 7:4, 8:5, 10:3, 11:4, 13:9, 14:10, 16:8, 17:9, 19:14, 22:13,  23:14}
+        outputs = []
         for i in range(self.layer_i):
             for j in range(self.layer_j):
-                if outputs[i][j] == 1:
+                if output_flags[i][j] == 1:
                     continue
                 if i == j:
-                    outputs[i][j] = diagonal_outputs[i]
+                    outputs.append(diagonal_outputs[i])
                 elif i < j:
-                    outputs[i][j] = self.width_half_convs[self.width_half_dict[i * self.layer_j + j]](outputs[i][j-1])
+                    index = i * 5 + j
+                    cur_conv =  self.width_half_convs[self.width_half_dict[index]]
+                    #print(len(outputs))
+                    #print(conv_map[index])
+                    cur_feature_map = outputs[conv_map[index]]
+                    outputs.append(cur_conv(cur_feature_map))
                 else: # i > j
-                    outputs[i][j] = self.height_half_convs[self.height_half_dict[i * self.layer_j + j]](outputs[i-1][j])
-         
-        final_outputs = []
-        for i in range(self.layer_i):
-            for j in range(self.layer_j):
-                if outputs[i][j] == 1:
-                   continue
-                final_outputs.append(outputs[i][j])
+                    index = i * 5 + j
+                    cur_conv = self.height_half_convs[self.height_half_dict[index]]
+                    cur_feature_map = outputs[conv_map[index]]
+                    outputs.append(cur_conv(cur_feature_map))
             
-        return tuple(final_outputs)
+        return tuple(outputs)

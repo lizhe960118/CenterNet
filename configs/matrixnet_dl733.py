@@ -3,7 +3,6 @@ model = dict(
     type='CenterNetFPN',
     #pretrained='open-mmlab://resnet50_caffe',
     backbone=dict(
-        backbone=dict(
         type='DLA2',
         base_name='dla34'),
     neck=dict(
@@ -21,6 +20,7 @@ model = dict(
         loss_wh = dict(type="L1Loss",loss_weight=0.1),
         loss_offset = dict(type="L1Loss",loss_weight=1.0))
 )
+
 # training and testing settings
 train_cfg = dict(
     assigner=dict(
@@ -33,6 +33,7 @@ train_cfg = dict(
     pos_weight=-1,
     debug=False
 )
+
 test_cfg = dict(
     a = 5
 )
@@ -52,8 +53,8 @@ data = dict(
         use_coco = False,
         ann_file=data_root + 'annotations/pascal_trainval0712.json',
         img_prefix=data_root + 'images/',
-        img_scale=(1333, 800),
-        #img_scale=(800,800),
+        #img_scale=(1333, 800),
+        img_scale=(800,800),
         #img_scale=(1024, 1024),
         img_norm_cfg=img_norm_cfg,
         size_divisor=31,

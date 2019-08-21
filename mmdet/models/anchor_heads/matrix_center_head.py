@@ -274,7 +274,8 @@ class MatrixCenterHead(nn.Module):
 
     def center_target(self, gt_bboxes_list, gt_labels_list, img_metas, all_level_points):
 
-        assert len(self.featmap_sizes) == len(self.regress_ranges)
+        #assert len(self.featmap_sizes) == len(self.regress_ranges)
+        assert len(self.featmap_sizes) == len(self.strides)
 
         # get heatmaps and targets of each image
         # heatmaps in heatmaps_list: [num_points, 80]
@@ -366,8 +367,9 @@ class MatrixCenterHead(nn.Module):
                 if (origin_h > min_regress_distance) and (origin_h <= max_regress_distance):
                     index_j = j
                     break
-             
-            index_level = index_map(index_i * 5 + index_j)
+            if self.flags[i][j] == 1:
+                continue
+            index_level = self.index_map[index_i * 5 + index_j]
             output_h, output_w = self.featmap_sizes[index_level]
             #print(output_h, output_w)
             hm = heatmaps_targets[index_level]
