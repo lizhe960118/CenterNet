@@ -223,8 +223,10 @@ class HRNet4(nn.Module):
                  zero_init_residual=False):
         super(HRNet4, self).__init__()
         self.extra = extra
+        
         self.conv_cfg = conv_cfg
         self.norm_cfg = norm_cfg
+        
         self.norm_eval = norm_eval
         self.with_cp = with_cp
         self.zero_init_residual = zero_init_residual
@@ -253,6 +255,7 @@ class HRNet4(nn.Module):
             bias=False)
 
         self.add_module(self.norm2_name, norm2)
+        
         self.relu = nn.ReLU(inplace=True)
 
         # stage 1

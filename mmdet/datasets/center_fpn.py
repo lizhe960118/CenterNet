@@ -135,7 +135,7 @@ class CenterFPN_dataset(CocoDataset):
         height, width = img.shape[0], img.shape[1]
         c = np.array([img.shape[1] / 2., img.shape[0] / 2.], dtype=np.float32)
         
-        keep_res = True
+        keep_res = False
         if keep_res: 
         # to keep the res
             input_h = (height | self.size_divisor) + 1

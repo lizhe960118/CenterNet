@@ -365,23 +365,23 @@ class CenterHead(nn.Module):
             #print(h, w)
             # 转换到当层
             if h > 0 and w > 0:
-                #radius = gaussian_radius((math.ceil(h), math.ceil(w)))
-                #radius = max(0, int(radius))
+                radius = gaussian_radius((math.ceil(h), math.ceil(w)))
+                radius = max(0, int(radius))
                 ct = np.array(
                   [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
                 #print(ct)
                 ct_int = ct.astype(np.int32)
-                hm[cls_id, ct_int[1], ct_int[0]] = 1
+                #hm[cls_id, ct_int[1], ct_int[0]] = 1
                 
-                if (ct_int[1] - 1) > 0:
-                    hm[cls_id, ct_int[1] - 1, ct_int[0]] = 0.5
-                if (ct_int[0] - 1) > 0:
-                    hm[cls_id, ct_int[1], ct_int[0] - 1] = 0.5
-                if (ct_int[1] + 1) < output_h:
-                    hm[cls_id, ct_int[1] + 1, ct_int[0]] = 0.5
-                if (ct_int[0] + 1) < output_w:
-                    hm[cls_id, ct_int[1], ct_int[0] + 1] = 0.5
-                #draw_umich_gaussian(hm[cls_id], ct_int, radius)
+                #if (ct_int[1] - 1) > 0:
+                #    hm[cls_id, ct_int[1] - 1, ct_int[0]] = 0.5
+                #if (ct_int[0] - 1) > 0:
+                #    hm[cls_id, ct_int[1], ct_int[0] - 1] = 0.5
+                #if (ct_int[1] + 1) < output_h:
+                #    hm[cls_id, ct_int[1] + 1, ct_int[0]] = 0.5
+                #if (ct_int[0] + 1) < output_w:
+                #    hm[cls_id, ct_int[1], ct_int[0] + 1] = 0.5
+                draw_umich_gaussian(hm[cls_id], ct_int, radius)
 
                 h, w = 1. * h, 1. * w
                 offset_count = ct - ct_int # h, w
