@@ -1,18 +1,29 @@
 # model settings
 model = dict(
     type='CenterNetFPN',
+    #pretrained='open-mmlab://resnet50_caffe',
     backbone=dict(
-        type='HourglassNet2'),
-    neck=dict(
-        type='DLAFPN',
-        in_channels=[256],
-        out_channels=256),
+        type='ResNetDCN',
+        depth=101, 
+        deconv=False
+    ),
+     neck=dict(
+        type='ResNetFPN',
+        in_channels=[256, 512, 1024, 2048],
+        #in_channels = [64],
+        out_channels=256,
+        start_level=0,
+        add_extra_convs=True, # use conv to get P6, P7
+        extra_convs_on_inputs=False,  # use P5
+        num_outs=5,
+        relu_before_extra_convs=True),
     bbox_head=dict(
         type='CenterHead',
-        num_classes=20,
+        num_classes=80,
         in_channels=256,
-        stacked_convs=3,
+        stacked_convs=1,
         feat_channels=256,
+        #strides=[8, 16, 32, 64, 128],
         strides=[4, 8, 16, 32, 64],
         regress_ranges=((-1, 32),(32, 64), (64, 128), (128, 256), (256, 1e8)),
         loss_hm=dict(
@@ -20,6 +31,7 @@ model = dict(
         loss_wh = dict(type="L1Loss",loss_weight=0.1),
         loss_offset = dict(type="L1Loss",loss_weight=1.0))
 )
+
 # training and testing settings
 train_cfg = dict(
     assigner=dict(
@@ -32,6 +44,7 @@ train_cfg = dict(
     pos_weight=-1,
     debug=False
 )
+
 test_cfg = dict(
     a = 5
 )
@@ -45,7 +58,7 @@ img_norm_cfg = dict(
 
 data = dict(
     imgs_per_gpu=4,
-    workers_per_gpu=2,
+    workers_per_gpu=4,
     train=dict(
         type=dataset_type,
         use_coco = False,
@@ -78,8 +91,7 @@ data = dict(
         use_coco = False,
         ann_file=data_root + 'annotations/pascal_val2012.json',
         img_prefix=data_root + 'images/',
-        #img_scale=(1333, 800),
-        img_scale=(512, 512),
+        img_scale=(1333, 800),
         img_norm_cfg=img_norm_cfg,
         size_divisor=31,
         flip_ratio=0,
@@ -109,12 +121,11 @@ log_config = dict(
 # yapf:enable
 # runtime settings
 total_epochs = 48
-#device_ids = range(2)
+# device_ids = range(8)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/center_hgfpn_2gpu'
-#load_from = 'pre_train_fpn.pth'
-#load_from = '/home/lizhe/CenterNet/HgNet_voc.pth'
+work_dir = './work_dirs/matrix_center_fpn_r50_caffe_fpn_gn_1x_4gpu'
+
 load_from = None
-resume_from = '/data/lizhe/model/centernet_hgfpn_cache/latest.pth'
+resume_from = None
 workflow = [('train', 1)]

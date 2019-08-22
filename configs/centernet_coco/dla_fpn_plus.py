@@ -1,20 +1,29 @@
+ # fp16 settings
+# fp16 = dict(loss_scale=4.)
+
 # model settings
 model = dict(
     type='CenterNetFPN',
+    #pretrained='open-mmlab://resnet50_caffe',
     backbone=dict(
-        type='HourglassNet2'),
+        type='DLA2',
+        base_name='dla34'),
     neck=dict(
         type='DLAFPN',
-        in_channels=[256],
-        out_channels=256),
+        #in_channels=[64, 128, 256, 512],
+        in_channels=[64],
+        out_channels=256,
+        num_outs=4
+    ),
     bbox_head=dict(
         type='CenterHead',
-        num_classes=20,
+        num_classes=80,
         in_channels=256,
-        stacked_convs=3,
+        stacked_convs=2,
         feat_channels=256,
-        strides=[4, 8, 16, 32, 64],
-        regress_ranges=((-1, 32),(32, 64), (64, 128), (128, 256), (256, 1e8)),
+        strides=(4, 8, 16, 32, 64), # 512 => 128, 64, 32, 16
+        #regress_ranges=((-1, 32), (32, 128), (128, 512), (512, 1e8)),
+        regress_ranges=((-1, 48), (48, 96), (96, 192), (192, 384), (384, 1e8)),
         loss_hm=dict(
             type='CenterFocalLoss'),
         loss_wh = dict(type="L1Loss",loss_weight=0.1),
@@ -37,23 +46,18 @@ test_cfg = dict(
 )
 # dataset settings
 dataset_type = 'CenterFPN_dataset'
-
-data_root = '/data/lizhe/voc/'
-
+data_root = '/data/lizhe/coco/'
 img_norm_cfg = dict(
-    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], to_rgb=True)
-
+        mean=[0.408, 0.447, 0.470], std=[0.289, 0.274, 0.278], to_rgb=True)
 data = dict(
-    imgs_per_gpu=4,
-    workers_per_gpu=2,
+    imgs_per_gpu=8,
+    workers_per_gpu=4,
     train=dict(
         type=dataset_type,
-        use_coco = False,
-        ann_file=data_root + 'annotations/pascal_trainval0712.json',
-        img_prefix=data_root + 'images/',
+        ann_file=data_root + 'annotations/instances_trainval2014.json',
+        img_prefix=data_root + 'images/trainval2014/',
         #img_scale=(1333, 800),
         #img_scale=(800,800),
-        #img_scale=(1024, 1024),
         img_scale=(512, 512),
         img_norm_cfg=img_norm_cfg,
         size_divisor=31,
@@ -63,9 +67,8 @@ data = dict(
         with_label=True),
     val=dict(
         type=dataset_type,
-        use_coco = False,
-        ann_file=data_root + 'annotations/pascal_val2012.json',
-        img_prefix=data_root + 'images/',
+        ann_file=data_root + 'annotations/instances_minival2014.json',
+        img_prefix=data_root + 'images/minival2014/',
         img_scale=(1333, 800),
         img_norm_cfg=img_norm_cfg,
         size_divisor=31,
@@ -75,9 +78,8 @@ data = dict(
         with_label=True),
     test=dict(
         type=dataset_type,
-        use_coco = False,
-        ann_file=data_root + 'annotations/pascal_val2012.json',
-        img_prefix=data_root + 'images/',
+        ann_file=data_root + 'annotations/instances_minival2014.json',
+        img_prefix=data_root + 'images/minival2014/',
         #img_scale=(1333, 800),
         img_scale=(512, 512),
         img_norm_cfg=img_norm_cfg,
@@ -88,8 +90,12 @@ data = dict(
         with_label=False,
         test_mode=True))
 # optimizer
-optimizer = dict(type='Adam', lr= 0.00025, betas=(0.9, 0.999), eps=1e-8)
-    
+optimizer = dict(type='Adam', lr= 0.00015, betas=(0.9, 0.999), eps=1e-8)
+    #type='SGD',
+    #lr=0.01,
+    #momentum=0.9,
+    #weight_decay=0.0001,
+    #paramwise_options=dict(bias_lr_mult=2., bias_decay_mult=0.))
 optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(
@@ -97,7 +103,9 @@ lr_config = dict(
     warmup='constant',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[40])
+    step=[4]
+#    step=[8, 11]
+)
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
@@ -108,13 +116,15 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 48
-#device_ids = range(2)
+#total_epochs = 12
+total_epochs = 5
+#device_ids = range(8)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/center_hgfpn_2gpu'
+work_dir = '/data/lizhe/model/centernet_dla_fpn_plus_cache'
 #load_from = 'pre_train_fpn.pth'
-#load_from = '/home/lizhe/CenterNet/HgNet_voc.pth'
-load_from = None
-resume_from = '/data/lizhe/model/centernet_hgfpn_cache/latest.pth'
+load_from = '/home/lizhe/CenterNet/ctdet_coco_dla_2x.pth'
+#load_from = None
+#resume_from = '/data/lizhe/model/centernet_dla_fpn_cache/latest.pth'
+resume_from = None
 workflow = [('train', 1)]

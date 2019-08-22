@@ -53,15 +53,15 @@ data_root = '/data/lizhe/coco/'
 img_norm_cfg = dict(
         mean=[0.408, 0.447, 0.470], std=[0.289, 0.274, 0.278], to_rgb=True)
 data = dict(
-    imgs_per_gpu=4,
+    imgs_per_gpu=8,
     workers_per_gpu=4,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_trainval2014.json',
         img_prefix=data_root + 'images/trainval2014/',
-        img_scale=(1333, 800),
+        #img_scale=(1333, 800),
         #img_scale=(800,800),
-        #img_scale=(1024, 1024),
+        img_scale=(512, 512),
         img_norm_cfg=img_norm_cfg,
         size_divisor=31,
         flip_ratio=0.5,
@@ -83,7 +83,7 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_minival2014.json',
         img_prefix=data_root + 'images/minival2014/',
-        img_scale=(1333, 800),
+        img_scale=(512, 512),
         img_norm_cfg=img_norm_cfg,
         size_divisor=31,
         flip_ratio=0,
@@ -120,13 +120,14 @@ log_config = dict(
 # runtime settings
 #total_epochs = 12
 total_epochs = 6
-device_ids = range(8)
+#device_ids = range(8)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/center_fpn_r50_caffe_fpn_gn_1x_4gpu'
 #load_from = 'pre_train_fpn.pth'
 #load_from = '/home/lizhe/CenterNet/ctdet_coco_dla_2x.pth'
-load_from = '/data/lizhe/model/centernet_dla_fpn_cache/latest.pth'
-#load_from = None
-resume_from = None
+load_from = None
+resume_from = '/data/lizhe/model/centernet_dla_fpn_cache/latest.pth'
+
+#resume_from = None
 workflow = [('train', 1)]

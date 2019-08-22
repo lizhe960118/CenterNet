@@ -227,7 +227,7 @@ class CenterFPN_dataset(CocoDataset):
         new_height = int(height * scale)
         new_width  = int(width * scale)
         
-        fix_res = False
+        fix_res = True
         if fix_res:
             input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
             c = np.array([new_width / 2., new_height / 2.], dtype=np.float32)
