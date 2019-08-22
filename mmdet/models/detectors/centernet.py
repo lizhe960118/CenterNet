@@ -60,7 +60,7 @@ class CenterNet(TwoStageDetector):
     #         print(img_meta)
     #         batch = kwargs
     #         print(batch)
-            scale = img_meta[i]['scale'].detach().cpu().numpy()[0]
+    #        scale = img_meta[i]['scale'].detach().cpu().numpy()[0]
             dets = post_process(dets, meta = img_meta[i], scale=1)
     #         print("after post_process:\n", dets)
         detections.append(dets)

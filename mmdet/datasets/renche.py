@@ -297,22 +297,24 @@ class RenCheDataset(CocoDataset):
         img = cv2.imread(img_path)
         height, width = img.shape[0], img.shape[1]
         
-        origin_input_h = (height | self.size_divisor) + 1
-        origin_input_w = (width | self.size_divisor) + 1
+        #origin_input_h = (height | self.size_divisor) + 1
+        #origin_input_w = (width | self.size_divisor) + 1
 
-        #c = np.array([img.shape[1] / 2., img.shape[0] / 2.], dtype=np.float32)
+        c = np.array([img.shape[1] / 2., img.shape[0] / 2.], dtype=np.float32)
         
         #s = max(img.shape[0], img.shape[1]) * 1.0
         
         inps = []
         img_metas = []
-        
-        scales = [0.6, 0.8, 1.0, 1.2, 1.4]
-        for scale in scales:
+	 
+        img_scales = [512, 800, 1024]
+        for img_scale in img_scales:
             #input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
             
-            input_h = origin_input_h * scale 
-            input_w = origin_input_w * scale
+            #input_h = int(origin_input_h * scale)
+            #input_w = int(origin_input_w * scale)
+            input_h = img_scale
+            input_w = img_scale
             s = np.array([input_w, input_h], dtype=np.float32)
      
 
@@ -333,7 +335,7 @@ class RenCheDataset(CocoDataset):
             meta = {'c': c, 's': s, 
                     'out_height': output_h, 
                     'out_width': output_w,
-                    'scale': scale}
+                    }
             inps.append(inp)
             img_metas.append(meta)
 #         print("after pre_process:\n", inp.shape, meta)
