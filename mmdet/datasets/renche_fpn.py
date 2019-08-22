@@ -5,7 +5,9 @@ import cv2
 import os
 import math
 import time
-# import torch
+import torch
+import random
+from mmcv.parallel import DataContainer as DC
 
 def get_dir(src_point, rot_rad):
     sn, cs = np.sin(rot_rad), np.cos(rot_rad)
@@ -166,12 +168,12 @@ def affine_transform(pt, t):
     return new_pt[:2]
 
 @DATASETS.register_module
-class RenCheDataset(CocoDataset):
+class RenCheFPNDataset(CocoDataset):
     
     CLASSES = ['car', 'person', 'bicycle', 'tricycle']
 
     def __init__(self, **kwargs):
-        super(RenCheDataset, self).__init__(**kwargs)
+        super(RenCheFPNDataset, self).__init__(**kwargs)
         self.max_objs = 250
         self.num_classes = 4
 
@@ -189,7 +191,6 @@ class RenCheDataset(CocoDataset):
     def prepare_train_img(self, index):
         cat_ids = {v: i for i, v in enumerate(np.arange(1, 5, dtype=np.int32))} # 原来标注为1，现在设置为0
        
-        # import pdb; pdb.set_trace()
         img_id = self.img_infos[index]['id']
         file_name = self.coco.loadImgs(ids=[img_id])[0]['file_name']
         img_path = os.path.join(self.img_prefix, file_name)
@@ -200,146 +201,121 @@ class RenCheDataset(CocoDataset):
         img = cv2.imread(img_path)
         height, width = img.shape[0], img.shape[1]
         c = np.array([img.shape[1] / 2., img.shape[0] / 2.], dtype=np.float32)
-        # if self.opt.keep_res:
-#         input_h = (height | self.size_divisor) + 1
-#         input_w = (width | self.size_divisor) + 1
-#         input_h = height
-#         input_w = width
-#         s = np.array([input_w, input_h], dtype=np.float32)
-        # else:
-        s = max(img.shape[0], img.shape[1]) * 1.0
-        input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
+        
+        keep_res = False
+        if keep_res: 
+        # to keep the res
+            input_h = (height | self.size_divisor) + 1
+            input_w = (width | self.size_divisor) + 1
+            s = np.array([input_w, input_h], dtype=np.float32)
+        else:
+            s = max(img.shape[0], img.shape[1]) * 1.0
+            input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
 
-        # flipped = False
-        # if self.split == 'train':
-        #   if not self.opt.not_rand_crop:
+        flipped = False
+        # to random crop
         s = s * np.random.choice(np.arange(0.6, 1.4, 0.1))
         w_border = self._get_border(128, img.shape[1])
         h_border = self._get_border(128, img.shape[0])
         c[0] = np.random.randint(low=w_border, high=img.shape[1] - w_border)
         c[1] = np.random.randint(low=h_border, high=img.shape[0] - h_border)
-        #   else:
-        # sf = 0.4
-        # cf = 0.1
-        # c[0] += s * np.clip(np.random.randn()*cf, -2*cf, 2*cf)
-        # c[1] += s * np.clip(np.random.randn()*cf, -2*cf, 2*cf)
-        # s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1 + sf)
-
-        #   if np.random.random() < self.opt.flip:
-        #     flipped = True
-        #     img = img[:, ::-1, :]
-        #     c[0] =  width - c[0] - 1
+        
+        # to random flip
+        flip_pro = 0.3
+        if np.random.random() < flip_pro:
+            flipped = True
+            img = img[:, ::-1, :]
+            c[0] =  width - c[0] - 1
 
         trans_input = get_affine_transform(
           c, s, 0, [input_w, input_h])
-#         meta = {}
-#         meta['c'] = c
-#         meta['s'] = s
+        meta = {}
+        meta['c'] = c
+        meta['s'] = s
+        meta['flipped'] = flipped 
+        meta['height'] = height
+        meta['width'] = width
      
         inp = cv2.warpAffine(img, trans_input,
                              (input_w, input_h),
                              flags=cv2.INTER_LINEAR)
         inp = (inp.astype(np.float32) / 255.)
         inp = (inp - self.img_norm_cfg['mean']) / self.img_norm_cfg['std']
-        inp = inp.transpose(2, 0, 1)
+        inp = inp.transpose(2, 0, 1)  # h, w, c => c, h, w
+        #print(height, width, inp.shape)
 
-        output_h = input_h // 4
-        output_w = input_w // 4
-#         print(output_h, output_w)
-#         meta['out_height'] = output_h
-#         meta['out_width'] = output_w
-        trans_output = get_affine_transform(c, s, 0, [output_w, output_h])
-
-        hm = np.zeros((self.num_classes, output_h, output_w), dtype=np.float32)
-        wh = np.zeros((self.max_objs, 2), dtype=np.float32)
-        reg = np.zeros((self.max_objs, 2), dtype=np.float32)
-        ind = np.zeros((self.max_objs), dtype=np.int64)
-        reg_mask = np.zeros((self.max_objs), dtype=np.uint8)
-
+        gt_bboxes = []
+        gt_labels = []
         for k in range(num_objs):
             ann = anns[k]
             bbox = self._coco_box_to_bbox(ann['bbox']) # 输入网络 x1, y1, x2, y2
             cls_id = int(cat_ids[ann['category_id']])
+            gt_bboxes.append(bbox)
+            gt_labels.append(np.array(cls_id))
 
-            # tranform bounding box to output size
-            bbox[:2] = affine_transform(bbox[:2], trans_output)
-            bbox[2:] = affine_transform(bbox[2:], trans_output)
-            bbox[[0, 2]] = np.clip(bbox[[0, 2]], 0, output_w - 1)
-            bbox[[1, 3]] = np.clip(bbox[[1, 3]], 0, output_h - 1)
-            h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
-            
-            if h > 0 and w > 0:
-                # populate hm based on gd and ct
-                radius = gaussian_radius((math.ceil(h), math.ceil(w)))
-                #radius = gaussian_small_radius((math.ceil(h), math.ceil(w)))
-                radius = max(0, int(radius))
-                ct = np.array(
-                  [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
-                ct_int = ct.astype(np.int32)
-                draw_umich_gaussian(hm[cls_id], ct_int, radius)
-                # draw_new_gaussian(hm[cls_id], ct_int, radius, [w, h])
-                wh[k] = 1. * w, 1. * h
-                ind[k] = ct_int[1] * output_w + ct_int[0]
-                reg[k] = ct - ct_int
-                reg_mask[k] = 1
-
-        ret = {'img': inp, 'hm': hm, 'reg_mask': reg_mask, 'ind': ind, 'wh': wh, 'reg': reg, 'img_meta':[]}
+        # inp = inp.type(torch.cuda.FloatTensor)
+        inp = torch.from_numpy(inp).type(torch.FloatTensor)
+        gt_bboxes = torch.from_numpy(np.stack(gt_bboxes, axis=0))
+        gt_labels = torch.from_numpy(np.stack(gt_labels, axis=0))
+        #print(index, inp.shape)
+        #data = dict(img=DC(to_tensor(img), stack=True),img_meta=DC(img_meta, cpu_only=True),gt_bboxes=DC(to_tensor(gt_bboxes)))
+        ret = {'img': DC(inp, stack=True),'img_meta':DC(meta, cpu_only=True), 'gt_bboxes':DC(gt_bboxes), 'gt_labels': DC(gt_labels)}
         return ret
-    
+
     def prepare_test_img(self, index):
         cat_ids = {v: i for i, v in enumerate(np.arange(1, 4, dtype=np.int32))} # 原来标注为1，现在设置为0
        
         img_id = self.img_infos[index]['id']
-
         file_name = self.coco.loadImgs(ids=[img_id])[0]['file_name']
         img_path = os.path.join(self.img_prefix, file_name)
-
+        
+        #print(img_path)
         img = cv2.imread(img_path)
+        img_shape = img.shape
         height, width = img.shape[0], img.shape[1]
         
-        #origin_input_h = (height | self.size_divisor) + 1
-        #origin_input_w = (width | self.size_divisor) + 1
-
-        c = np.array([img.shape[1] / 2., img.shape[0] / 2.], dtype=np.float32)
+        #scale = random.choice([0.6, 0.8, 1.0, 1.2, 1.4])
+        scale = 1
+        new_height = int(height * scale)
+        new_width  = int(width * scale)
         
-        #s = max(img.shape[0], img.shape[1]) * 1.0
+        fix_res = True
+        if fix_res:
+            input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
+            c = np.array([new_width / 2., new_height / 2.], dtype=np.float32)
+            s = max(height, width) * 1.0
+        else:
+            input_h = (new_height | self.size_divisor) + 1
+            input_w = (new_width | self.size_divisor) + 1
+            c = np.array([new_width // 2, new_height // 2], dtype=np.float32)
+            s = np.array([input_w, input_h], dtype=np.float32)
         
-        inps = []
-        img_metas = []
-	 
-        #img_scales = [512, 800, 1024]
-        #for img_scale in img_scales:
-        input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
-            
-            #input_h = int(origin_input_h * scale)
-            #input_w = int(origin_input_w * scale)
-            #input_h = img_scale
-            #input_w = img_scale
-        s = np.array([input_w, input_h], dtype=np.float32)
-     
-
         trans_input = get_affine_transform(c, s, 0, [input_w, input_h])
-
-        inp = cv2.warpAffine(img, trans_input,
-                            (input_w, input_h),
-                            flags=cv2.INTER_LINEAR)
-
-        inp = (inp.astype(np.float32) / 255.)
-        inp = (inp - self.img_norm_cfg['mean']) / self.img_norm_cfg['std']
-        inp = inp.transpose(2, 0, 1) # reshape(1, 3, inp_height, inp_width)
-
-        output_h = input_h // 4
-        output_w = input_w // 4
-    #     print(output_h, output_w)
-
-        meta = {'c': c, 's': s, 
-                'out_height': output_h, 
-                'out_width': output_w,
-                }
-        #inps.append(inp)
-        #img_metas.append(meta)
-#         print("after pre_process:\n", inp.shape, meta)
+        resized_image = cv2.resize(img, (new_width, new_height))
         
-        ret = {"img": inp, "img_meta": img_meta}
+        # 先变换到resized_image
+        inp_image = cv2.warpAffine(resized_image, trans_input, 
+                                   (input_w, input_h),
+                                   flags=cv2.INTER_LINEAR)
+        inp_image = (inp_image.astype(np.float32) / 255.)
+        inp_image = (inp_image - self.img_norm_cfg['mean']) / self.img_norm_cfg['std']
+        
+        #images = inp_image.transpose(2, 0, 1).reshape(1, 3, input_w, input_h)
+        images = inp_image.transpose(2, 0, 1).reshape(3, input_w, input_h)
+        
+        flip_test = False
+        if flip_test:
+            images = np.concatenate((images, images[:, :, :, ::-1]), axis=0)
+            
+        images = torch.from_numpy(images).type(torch.FloatTensor)
+        
+        meta = {} 
+        meta['c'] = c
+        meta['s'] = s
+        # meta['scale_factor'] = scale_factor
+        # meta['img_shape'] = img.shape
+        meta['scale_factor'] = scale
+        #meta['flip_test'] = flip_test
+        
+        ret = {'img': DC(images, stack=True), 'img_meta':DC(meta, cpu_only=True)}
         return ret
-

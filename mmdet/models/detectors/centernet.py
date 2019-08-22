@@ -45,25 +45,26 @@ class CenterNet(TwoStageDetector):
         """Test without augmentation."""
 #         assert self.with_bbox, "Bbox head must be implemented."
 #         print("after preprocess\n:", img, img_meta)
-        detections = []
-        for i in range(len(img)):
-            output = self.backbone(img[i].type(torch.cuda.FloatTensor))[-1] # batch, c, h, m
-            hm = torch.clamp(output['hm'].sigmoid_(), min=1e-4, max=1-1e-4)
+#        detections = []
+#        for i in range(len(img)):
+        output = self.backbone(img[i].type(torch.cuda.FloatTensor))[-1] # batch, c, h, m
+        hm = torch.clamp(output['hm'].sigmoid_(), min=1e-4, max=1-1e-4)
     #         hm = output['hm'].sigmoid_()
-            wh = output['wh']
-            reg = output['reg']
+        wh = output['wh']
+        reg = output['reg']
     #         print("hm", hm)
     #         print("wh", wh)
     #         print("reg", reg)
-            dets = ctdet_decode(hm, wh, reg=reg, K=100)
+        dets = ctdet_decode(hm, wh, reg=reg, K=100)
     #         print("after process:\n", dets)
     #         print(img_meta)
     #         batch = kwargs
     #         print(batch)
     #        scale = img_meta[i]['scale'].detach().cpu().numpy()[0]
-            dets = post_process(dets, meta = img_meta[i], scale=1)
+        dets = post_process(dets, meta = img_meta[i], scale=1)
     #         print("after post_process:\n", dets)
-        detections.append(dets)
+#        detections.append(dets)
+        detections = [dets]
 #         print(detections)
         results = merge_outputs(detections)
 #         print(results)

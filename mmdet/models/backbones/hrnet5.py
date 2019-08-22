@@ -391,7 +391,6 @@ class HRNet5(nn.Module):
     
     def forward(self, x):
         image      = x
-
         inter      = self.pre(image)
         inter      = self.layer1(inter)
         x = inter
@@ -420,5 +419,4 @@ class HRNet5(nn.Module):
             else:
                 x_list.append(y_list[i])
         y_list  = self.stage4(x_list)
-
         return y_list

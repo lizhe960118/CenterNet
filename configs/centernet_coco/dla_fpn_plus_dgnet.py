@@ -13,7 +13,7 @@ model = dict(
         #in_channels=[64, 128, 256, 512],
         in_channels=[64],
         out_channels=256,
-        num_outs=4
+        num_outs=5
     ),
     bbox_head=dict(
         type='CenterHead',

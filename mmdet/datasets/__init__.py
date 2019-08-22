@@ -12,10 +12,11 @@ from .builder import build_dataset
 from .ctdet import Ctdet
 from .center_fpn import CenterFPN_dataset
 from .renche import RenCheDataset
+from .renche_fpn import RenCheFPNDataset
 
 __all__ = [
     'CustomDataset', 'XMLDataset', 'CocoDataset', 'VOCDataset', 'GroupSampler',
     'DistributedGroupSampler', 'build_dataloader', 'to_tensor', 'random_scale',
     'show_ann', 'ConcatDataset', 'RepeatDataset', 'ExtraAugmentation',
-    'WIDERFaceDataset', 'DATASETS', 'build_dataset', 'Ctdet', 'CenterFPN_dataset', 'RenCheDataset'
+    'WIDERFaceDataset', 'DATASETS', 'build_dataset', 'Ctdet', 'CenterFPN_dataset', 'RenCheDataset', 'RenCheFPNDataset'
 ]
