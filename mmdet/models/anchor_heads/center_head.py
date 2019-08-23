@@ -340,7 +340,8 @@ class CenterHead(nn.Module):
             # condition: in the regress_ranges
             origin_h, origin_w = bbox[3] - bbox[1], bbox[2] - bbox[0]
             #max_h_w = max(h, w) / 2
-            max_h_w = max(origin_h, origin_w) * 2 # 最长边为32在P2
+            max_h_w = max(origin_h, origin_w)
+            #max_h_w = max(origin_h, origin_w) * 2 # 最长边为32在P2
             # 根据max_h_w在哪一层将output设置为当前层的
             index_level = 0
             for i in range(num_levels):
