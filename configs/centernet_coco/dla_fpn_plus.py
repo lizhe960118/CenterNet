@@ -9,21 +9,24 @@ model = dict(
         type='DLA2',
         base_name='dla34'),
     neck=dict(
-        type='DLAFPN',
-        #in_channels=[64, 128, 256, 512],
-        in_channels=[64],
+        type='FPN',
+        in_channels=[64, 128, 256, 512],
         out_channels=256,
-        num_outs=4
-    ),
+        start_level=0,
+        add_extra_convs=True,
+        extra_convs_on_inputs=False,  # use P5
+        num_outs=4,
+        relu_before_extra_convs=True),
     bbox_head=dict(
         type='CenterHead',
         num_classes=80,
         in_channels=256,
         stacked_convs=2,
         feat_channels=256,
-        strides=(4, 8, 16, 32, 64), # 512 => 128, 64, 32, 16
-        #regress_ranges=((-1, 32), (32, 128), (128, 512), (512, 1e8)),
-        regress_ranges=((-1, 48), (48, 96), (96, 192), (192, 384), (384, 1e8)),
+        strides=(4, 8, 16, 32),
+        #strides=(4, 8, 16, 32, 64), # 512 => 128, 64, 32, 16
+        regress_ranges=((-1, 32), (32, 128), (128, 512), (512, 1e8)),
+        #regress_ranges=((-1, 48), (48, 96), (96, 192), (192, 384), (384, 1e8)),
         loss_hm=dict(
             type='CenterFocalLoss'),
         loss_wh = dict(type="L1Loss",loss_weight=0.1),
@@ -90,7 +93,7 @@ data = dict(
         with_label=False,
         test_mode=True))
 # optimizer
-optimizer = dict(type='Adam', lr= 0.00015, betas=(0.9, 0.999), eps=1e-8)
+optimizer = dict(type='Adam', lr= 0.00025, betas=(0.9, 0.999), eps=1e-8)
     #type='SGD',
     #lr=0.01,
     #momentum=0.9,
@@ -103,8 +106,9 @@ lr_config = dict(
     warmup='constant',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[4]
-#    step=[8, 11]
+#    step=[4]
+    step=[5, 8, 11],
+    gamma=0.2
 )
 checkpoint_config = dict(interval=1)
 # yapf:disable
@@ -116,8 +120,8 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-#total_epochs = 12
-total_epochs = 5
+total_epochs = 12
+#total_epochs = 5
 #device_ids = range(8)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'

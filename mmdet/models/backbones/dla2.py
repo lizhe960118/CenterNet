@@ -244,13 +244,6 @@ class DLAMain(nn.Module):
         self.level5 = Tree(levels[5], block, channels[4], channels[5], 2,
                            level_root=True, root_residual=residual_root)
 
-        # for m in self.modules():
-        #     if isinstance(m, nn.Conv2d):
-        #         n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-        #         m.weight.data.normal_(0, math.sqrt(2. / n))
-        #     elif isinstance(m, nn.BatchNorm2d):
-        #         m.weight.data.fill_(1)
-        #         m.bias.data.zero_()
 
     def _make_level(self, block, inplanes, planes, blocks, stride=1):
         downsample = None
@@ -286,6 +279,15 @@ class DLAMain(nn.Module):
         x = self.base_layer(x)
         for i in range(6):
             x = getattr(self, 'level{}'.format(i))(x)
+            #print("dla_main:level{}".format(i), x.shape)
+            '''
+            dla_main:level0 torch.Size([8, 16, 512, 512])
+            dla_main:level1 torch.Size([8, 32, 256, 256])
+            dla_main:level2 torch.Size([8, 64, 128, 128])
+            dla_main:level3 torch.Size([8, 128, 64, 64])
+            dla_main:level4 torch.Size([8, 256, 32, 32])
+            dla_main:level5 torch.Size([8, 512, 16, 16])
+            '''
             y.append(x)
         return y
 
@@ -382,23 +384,40 @@ class IDAUp(nn.Module):
             layers[i] = upsample(project(layers[i]))
             node = getattr(self, 'node_' + str(i - startp))
             layers[i] = node(layers[i] + layers[i - 1])
+            #print("ida_up:level{}".format(i), layers[i].shape)
+            '''
+            1)ida_up:level5 torch.Size([8, 256, 32, 32])
+            2)ida_up:level4 torch.Size([8, 128, 64, 64])
+              ida_up:level5 torch.Size([8, 128, 64, 64])
+            3)ida_up:level3 torch.Size([8, 64, 128, 128])
+              ida_up:level4 torch.Size([8, 64, 128, 128])
+              ida_up:level5 torch.Size([8, 64, 128, 128])
+              
+            4)ida_up:level1 torch.Size([8, 64, 128, 128])
+              ida_up:level2 torch.Size([8, 64, 128, 128])
+            '''
 
 
 
 class DLAUp(nn.Module):
     def __init__(self, startp, channels, scales, in_channels=None):
         super(DLAUp, self).__init__()
-        self.startp = startp
+        """
+        (2, [64, 128, 256, 512], [1, 2, 4, 8])
+        """
+        self.startp = startp # 2
         if in_channels is None:
             in_channels = channels
         self.channels = channels
         channels = list(channels)
         scales = np.array(scales, dtype=int)
-        for i in range(len(channels) - 1):
-            j = -i - 2
+        for i in range(len(channels) - 1): #[0, 1, 2]
+            j = -i - 2 # [-2, -3, -4]
             setattr(self, 'ida_{}'.format(i),
                     IDAUp(channels[j], in_channels[j:],
-                          scales[j:] // scales[j]))
+                          scales[j:] // scales[j])) 
+            # j = -2 => (256, [256, 512], [1,2])
+            # j = -3 => (128, [128, 256, 512], [1,2,4]
             scales[j + 1:] = scales[j]
             in_channels[j + 1:] = [channels[j] for _ in channels[j + 1:]]
 
@@ -408,6 +427,12 @@ class DLAUp(nn.Module):
             ida = getattr(self, 'ida_{}'.format(i))
             ida(layers, len(layers) -i - 2, len(layers))
             out.insert(0, layers[-1])
+            #print("dla_up:level{}".format(i), layers[-1].shape)
+            '''
+            1) dla_up:level0 torch.Size([8, 256, 32, 32])
+            2) dla_up:level1 torch.Size([8, 128, 64, 64])
+            3) dla_up:level2 torch.Size([8, 64, 128, 128])
+            '''
         return out
 
 
@@ -427,74 +452,66 @@ class DLA2(nn.Module):
                  last_level=5, out_channel=0):
         super(DLA2, self).__init__()
         assert down_ratio in [2, 4, 8, 16]
-        self.first_level = int(np.log2(down_ratio))
+        self.first_level = int(np.log2(down_ratio)) # 2
         self.last_level = last_level
         self.base = globals()[base_name](pretrained=pretrained)
         channels = self.base.channels # [16, 32, 64, 128, 256, 512]
-        scales = [2 ** i for i in range(len(channels[self.first_level:]))]
-        self.dla_up = DLAUp(self.first_level, channels[self.first_level:], scales)
+        scales = [2 ** i for i in range(len(channels[self.first_level:]))] #  [64, 128, 256, 512] => [1, 2, 4, 8]
+        self.dla_up = DLAUp(self.first_level, channels[self.first_level:], scales) # (2, [64, 128, 256, 512], [1, 2, 4, 8])
 
         if out_channel == 0:
-            out_channel = channels[self.first_level]
+            out_channel = channels[self.first_level] # 128
 
         self.ida_up = IDAUp(out_channel, channels[self.first_level:self.last_level],
-                            [2 ** i for i in range(self.last_level - self.first_level)])
+                            [2 ** i for i in range(self.last_level - self.first_level)]) # 128, [64, 128, 256], [1, 2, 4]
 
-        #self.heads = heads
-        #for head in self.heads:
-        #    classes = self.heads[head]
-        #    if head_conv > 0:
-        #      fc = nn.Sequential(
-        #          nn.Conv2d(channels[self.first_level], head_conv,
-        #            kernel_size=3, padding=1, bias=True),
-        #          nn.ReLU(inplace=True),
-        #          nn.Conv2d(head_conv, classes,
-        #            kernel_size=final_kernel, stride=1,
-        #            padding=final_kernel // 2, bias=True))
-        #      if 'hm' in head:
-        #        fc[-1].bias.data.fill_(-2.19)
-        #      else:
-        #        fill_fc_weights(fc)
-        #    else:
-        #      fc = nn.Conv2d(channels[self.first_level], classes,
-        #          kernel_size=final_kernel, stride=1,
-        #          padding=final_kernel // 2, bias=True)
-        #      if 'hm' in head:
-        #        fc.bias.data.fill_(-2.19)
-        #      else:
-        #        fill_fc_weights(fc)
-        #   self.__setattr__(head, fc)
 
     def forward(self, x):
         x = self.base(x)
         x = self.dla_up(x)
-
+        """
+        #for i in range(len(x)):
+        #    print("x{}.shape:".format(i), x[i].shape)
+        '''
+        0) dla_up:level2 torch.Size([8, 64, 128, 128])
+        1) dla_up:level1 torch.Size([8, 128, 64, 64])
+        2) dla_up:level0 torch.Size([8, 256, 32, 32])
+        '''
+        '''
+        x0.shape: torch.Size([8, 64, 128, 128])
+        x1.shape: torch.Size([8, 128, 64, 64])
+        x2.shape: torch.Size([8, 256, 32, 32])
+        x3.shape: torch.Size([8, 512, 16, 16])
+        '''
+        
         y = []
-        for i in range(self.last_level - self.first_level):
+        for i in range(self.last_level - self.first_level): # 5 - 2 = 3, [0, 1, 2]
             y.append(x[i].clone())
+        #for i in range(len(y)):
+        #    print("y{}.shape:".format(i), y[i].shape)
+        '''
+        y0.shape: torch.Size([8, 64, 128, 128])
+        y1.shape: torch.Size([8, 128, 64, 64])
+        y2.shape: torch.Size([8, 256, 32, 32])
+        '''
+            
         self.ida_up(y, 0, len(y))
         
         #for i in range(len(y)):
-        #    print(y[i].shape) # torch.Size([4, 64, 200, 200])
-        
+        #    print("y{}.shape:".format(i), y[i].shape)
+        '''
+        y0.shape: torch.Size([8, 64, 128, 128])
+        y1.shape: torch.Size([8, 64, 128, 128])
+        y2.shape: torch.Size([8, 64, 128, 128])
+        '''
+            
         y_list = []
         y_list.append(y[-1])
         return y_list
-
-        #z = {}
-        #for head in self.heads:
-        #    z[head] = self.__getattr__(head)(y[-1])
-        #return [z]
+        """
+        return tuple(x)
 
     def init_weights(self, pretrained=None):
         print('initializing weights')
 
-# def get_pose_net(num_layers, heads, head_conv=256, down_ratio=4):
-#   model = DLASeg('dla{}'.format(num_layers), heads,
-#                  pretrained=True,
-#                  down_ratio=down_ratio,
-#                  final_kernel=1,
-#                  last_level=5,
-#                  head_conv=head_conv)
-#   return model
 

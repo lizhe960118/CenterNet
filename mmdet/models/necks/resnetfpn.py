@@ -11,7 +11,7 @@ from ..utils import ConvModule
 class ResNetFPN(nn.Module):
 
     def __init__(self,
-                 in_channels,
+                 in_channels, # [
                  out_channels,
                  num_outs,
                  start_level=0, # 1
@@ -24,9 +24,9 @@ class ResNetFPN(nn.Module):
                  activation=None):
         super(ResNetFPN, self).__init__()
         assert isinstance(in_channels, list)
-        self.in_channels = in_channels # [64]
+        self.in_channels = in_channels # [64, 128, 256, 512]
         self.out_channels = out_channels # 256
-        self.num_ins = len(in_channels) # 1
+        self.num_ins = len(in_channels) # 4
         self.num_outs = num_outs # 5
         self.activation = activation
         self.relu_before_extra_convs = relu_before_extra_convs
@@ -101,6 +101,7 @@ class ResNetFPN(nn.Module):
 
     @auto_fp16()
     def forward(self, inputs):
+        #print(len(inputs))
         assert len(inputs) == len(self.in_channels)
 
         # build laterals

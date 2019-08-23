@@ -6,27 +6,29 @@ model = dict(
         type='ResNetDCN',
         depth=101, 
         deconv=True
-        #out_indices=(0, 1, 2, 3)
     ),
     neck=dict(
         type='ResNetFPN',
-        #in_channels=[256, 512, 1024, 2048],
-        in_channels = [64],
-        out_channels=256,
+        in_channels=[256, 512, 1024, 2048],
+        #in_channels = [64, 128, 256, 512],
+        out_channels = 256,
         start_level=0,
         add_extra_convs=True, # use conv to get P6, P7
         extra_convs_on_inputs=False,  # use P5
-        num_outs=5,
+        num_outs=4,
         relu_before_extra_convs=True),
     bbox_head=dict(
         type='CenterHead',
         num_classes=80,
         in_channels=256,
-        stacked_convs=1,
+        stacked_convs=2,
         feat_channels=256,
         #strides=[8, 16, 32, 64, 128],
-        strides=[4, 8, 16, 32, 64],
-        regress_ranges=((-1, 32),(32, 64), (64, 128), (128, 256), (256, 1e8)),
+        strides=[4, 8, 16, 32],
+        #regress_ranges=((-1, 32),(32, 64), (64, 128), (128, 256), (256, 1e8)),
+        #regress_ranges=((-1, 48),(48, 96), (96, 192), (192, 384), (384, 1e8)),
+        regress_ranges=((-1, 48),(48, 128),(128, 384),(384,1e8)),
+        use_cross = True,
         loss_hm=dict(
             type='CenterFocalLoss'),
         loss_wh = dict(type="L1Loss",loss_weight=0.1),
@@ -46,11 +48,6 @@ train_cfg = dict(
 )
 test_cfg = dict(
     a = 5
-    #nms_pre=1000,
-    #min_bbox_size=0,
-    #score_thr=0.05,
-    #nms=dict(type='nms', iou_thr=0.5),
-    #max_per_img=100
 )
 # dataset settings
 dataset_type = 'CenterFPN_dataset'
@@ -58,14 +55,14 @@ data_root = '/data/lizhe/coco/'
 img_norm_cfg = dict(
         mean=[0.408, 0.447, 0.470], std=[0.289, 0.274, 0.278], to_rgb=True)
 data = dict(
-    imgs_per_gpu=4,
+    imgs_per_gpu=6,
     workers_per_gpu=4,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_trainval2014.json',
         img_prefix=data_root + 'images/trainval2014/',
-        img_scale=(1333, 800),
-        #img_scale=(800,800),
+        #img_scale=(1333, 800),
+        img_scale=(512, 512),
         #img_scale=(1024, 1024),
         img_norm_cfg=img_norm_cfg,
         size_divisor=31,
@@ -110,8 +107,8 @@ lr_config = dict(
     warmup='constant',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[4]
-#    step=[8, 11]
+    step=[5, 8, 11],
+    gamma=0.2
 )
 checkpoint_config = dict(interval=1)
 # yapf:disable
@@ -123,13 +120,12 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-#total_epochs = 12
-total_epochs = 6
-device_ids = range(8)
+total_epochs = 12
+#device_ids = range(8)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/center_fpn_r50_caffe_fpn_gn_1x_4gpu'
 #load_from = 'pre_train_fpn.pth'
-load_from = '/home/lizhe/CenterNet/ctdet_coco_dla_2x.pth'
+load_from = '/home/lizhe/CenterNet/ctdet_coco_resdcn101.pth'
 resume_from = None
 workflow = [('train', 1)]

@@ -19,7 +19,7 @@ import math
 
 import torch
 import torch.nn as nn
-from mmdet.ops import DeformConv as DCN
+from mmdet.ops import ModulatedDeformConvPack as DCN
 import torch.utils.model_zoo as model_zoo
 
 BN_MOMENTUM = 0.1
@@ -167,16 +167,21 @@ class ResNetDCN(nn.Module):
             layer_name = 'layer{}'.format(i + 1)
             self.add_module(layer_name, res_layer)
             self.res_layers.append(layer_name)
-            
-        #self.layer1 = self._make_layer(block, 64, layers[0])
-        #self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-        #self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        #self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+             
+        #self.layer1 = self._make_layer(block, 64, layers[0])  # 3 256?
+        #self.layer2 = self._make_layer(block, 128, layers[1], stride=2) # 4
+        #self.layer3 = self._make_layer(block, 256, layers[2], stride=2) # 24
+        #self.layer4 = self._make_layer(block, 512, layers[3], stride=2) # 3
+        # torch.Size([4, 256, 200, 200])
+        # torch.Size([4, 512, 100, 100])
+        #torch.Size([4, 1024, 50, 50])
+        #torch.Size([4, 2048, 25, 25])
 
         # used for deconv layers
         self.deconv_layers = self._make_deconv_layer(
             3,
-            [256, 128, 64],
+            [1024, 512, 256],
+            #[256, 128, 64],
             [4, 4, 4],
         )
 
@@ -216,8 +221,11 @@ class ResNetDCN(nn.Module):
         assert num_layers == len(num_kernels), \
             'ERROR: num_deconv_layers is different len(num_deconv_filters)'
 
-        layers = []
+        deconv_layers = []
+            
         for i in range(num_layers):
+            deconv_layer = []
+            
             kernel, padding, output_padding = \
                 self._get_deconv_cfg(num_kernels[i], i)
 
@@ -239,15 +247,22 @@ class ResNetDCN(nn.Module):
                     bias=self.deconv_with_bias)
             fill_up_weights(up)
 
-            layers.append(fc)
-            layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
-            layers.append(nn.ReLU(inplace=True))
-            layers.append(up)
-            layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
-            layers.append(nn.ReLU(inplace=True))
+            deconv_layer.append(fc)
+            deconv_layer.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+            deconv_layer.append(nn.ReLU(inplace=True))
+            deconv_layer.append(up)
+            deconv_layer.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+            deconv_layer.append(nn.ReLU(inplace=True))
+            deconv_layer_i = nn.Sequential(*deconv_layer)
+            
+            layer_name = 'deconv_layer{}'.format(i + 1)
+            self.add_module(layer_name, deconv_layer_i)
+            deconv_layers.append(layer_name)
+            
             self.inplanes = planes
+            
 
-        return nn.Sequential(*layers)
+        return deconv_layers
 
     def forward(self, x):
         x = self.conv1(x)
@@ -272,21 +287,29 @@ class ResNetDCN(nn.Module):
             for i, layer_name in enumerate(self.res_layers):
                 res_layer = getattr(self, layer_name)
                 x = res_layer(x)
-            x = self.deconv_layers(x)
+         #       print(x.shape)
             outs.append(x)
+            for i, layer_name in enumerate(self.deconv_layers):
+                deconv_layer = getattr(self, layer_name)
+                x = deconv_layer(x)
+         #       print(x.shape)
+                outs.append(x)
+            outs = outs[::-1]
      
-        return outs
+        return tuple(outs)
 
-    def init_weights(self):
+    def init_weights(self, pretrained=None):
         num_layers = self.depth
         print("init weights in resnet dcn")
-        if 1:
-            url = model_urls['resnet{}'.format(num_layers)]
-            pretrained_state_dict = model_zoo.load_url(url)
-            print('=> loading pretrained model {}'.format(url))
-            self.load_state_dict(pretrained_state_dict, strict=False)
-            print('=> init deconv weights from normal distribution')
-            for name, m in self.deconv_layers.named_modules():
-                if isinstance(m, nn.BatchNorm2d):
-                    nn.init.constant_(m.weight, 1)
-                    nn.init.constant_(m.bias, 0)
+       
+        #url = model_urls['resnet{}'.format(num_layers)]
+        #pretrained_state_dict = model_zoo.load_url(url)
+        #print('=> loading pretrained model {}'.format(url))
+        #self.load_state_dict(pretrained_state_dict, strict=False)
+        #print('=> init deconv weights from normal distribution')
+        for layer_name in self.deconv_layers:
+            deconv_layer = getattr(self, layer_name)
+            m = deconv_layer.named_modules()
+            if isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
