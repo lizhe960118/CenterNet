@@ -5,7 +5,8 @@ import cv2
 import os
 import math
 import time
-# import torch
+import torch
+import random
 
 def get_dir(src_point, rot_rad):
     sn, cs = np.sin(rot_rad), np.cos(rot_rad)
@@ -165,6 +166,40 @@ def affine_transform(pt, t):
     new_pt = np.dot(t, new_pt)
     return new_pt[:2]
 
+def grayscale(image):
+    return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+def lighting_(data_rng, image, alphastd, eigval, eigvec):
+    alpha = data_rng.normal(scale=alphastd, size=(3, ))
+    image += np.dot(eigvec, eigval * alpha)
+
+def blend_(alpha, image1, image2):
+    image1 *= alpha
+    image2 *= (1 - alpha)
+    image1 += image2
+
+def saturation_(data_rng, image, gs, gs_mean, var):
+    alpha = 1. + data_rng.uniform(low=-var, high=var)
+    blend_(alpha, image, gs[:, :, None])
+
+def brightness_(data_rng, image, gs, gs_mean, var):
+    alpha = 1. + data_rng.uniform(low=-var, high=var)
+    image *= alpha
+
+def contrast_(data_rng, image, gs, gs_mean, var):
+    alpha = 1. + data_rng.uniform(low=-var, high=var)
+    blend_(alpha, image, gs_mean)
+
+def color_aug(data_rng, image, eig_val, eig_vec):
+    functions = [brightness_, contrast_, saturation_]
+    random.shuffle(functions)
+
+    gs = grayscale(image)
+    gs_mean = gs.mean()
+    for f in functions:
+        f(data_rng, image, gs, gs_mean, 0.4)
+    lighting_(data_rng, image, 0.1, eig_val, eig_vec)
+
 @DATASETS.register_module
 class Ctdet(CocoDataset):
 
@@ -198,6 +233,15 @@ class Ctdet(CocoDataset):
         super(Ctdet, self).__init__(**kwargs)
         self.use_coco = use_coco
         self.CLASSES = self.CLASSES_2 if use_coco else self.CLASSES_1
+        self.flip = 0.5
+        self._data_rng = np.random.RandomState(123)
+        self._eig_val = np.array([0.2141788, 0.01817699, 0.00341571],
+                                 dtype=np.float32)
+        self._eig_vec = np.array([
+            [-0.58752847, -0.69563484, 0.41340352],
+            [-0.5832747, 0.00994535, -0.81221408],
+            [-0.56089297, 0.71832671, 0.41158938]
+        ], dtype=np.float32)
 #         print(kwargs)
 
     def _get_border(self, border, size): # 128, 512
@@ -251,7 +295,7 @@ class Ctdet(CocoDataset):
         s = max(img.shape[0], img.shape[1]) * 1.0
         input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
 
-        # flipped = False
+        flipped = False
         # if self.split == 'train':
         #   if not self.opt.not_rand_crop:
         s = s * np.random.choice(np.arange(0.6, 1.4, 0.1))
@@ -266,10 +310,10 @@ class Ctdet(CocoDataset):
         # c[1] += s * np.clip(np.random.randn()*cf, -2*cf, 2*cf)
         # s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1 + sf)
 
-        #   if np.random.random() < self.opt.flip:
-        #     flipped = True
-        #     img = img[:, ::-1, :]
-        #     c[0] =  width - c[0] - 1
+        if np.random.random() < self.flip:
+            flipped = True
+            img = img[:, ::-1, :]
+            c[0] =  width - c[0] - 1
 
         trans_input = get_affine_transform(
           c, s, 0, [input_w, input_h])
@@ -281,6 +325,7 @@ class Ctdet(CocoDataset):
                              (input_w, input_h),
                              flags=cv2.INTER_LINEAR)
         inp = (inp.astype(np.float32) / 255.)
+        color_aug(self._data_rng, inp, self._eig_val, self._eig_vec)
         inp = (inp - self.img_norm_cfg['mean']) / self.img_norm_cfg['std']
         inp = inp.transpose(2, 0, 1)
 
@@ -311,8 +356,8 @@ class Ctdet(CocoDataset):
             
             if h > 0 and w > 0:
                 # populate hm based on gd and ct
-                radius = gaussian_radius((math.ceil(h), math.ceil(w)))
-                #radius = gaussian_small_radius((math.ceil(h), math.ceil(w)))
+                #radius = gaussian_radius((math.ceil(h), math.ceil(w)))
+                radius = gaussian_small_radius((math.ceil(h), math.ceil(w)))
                 radius = max(0, int(radius))
                 ct = np.array(
                   [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
@@ -328,23 +373,23 @@ class Ctdet(CocoDataset):
         return ret
     
     def prepare_test_img(self, index):
-        #if self.use_coco:
-        #    self.max_objs = 128
-        #    self.num_classes = 80
-        #    _valid_ids = [
-        #      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13,
-        #      14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-        #      24, 25, 27, 28, 31, 32, 33, 34, 35, 36,
-        #      37, 38, 39, 40, 41, 42, 43, 44, 46, 47,
-        #      48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
-        #      58, 59, 60, 61, 62, 63, 64, 65, 67, 70,
-        #      72, 73, 74, 75, 76, 77, 78, 79, 80, 81,
-        #      82, 84, 85, 86, 87, 88, 89, 90]
-        #    cat_ids = {v: i for i, v in enumerate(_valid_ids)}
-        #else:
-        #    self.max_objs = 3
-        #    self.num_classes = 20
-        #    cat_ids = {v: i for i, v in enumerate(np.arange(1, 21, dtype=np.int32))}
+        if self.use_coco:
+            self.max_objs = 128
+            self.num_classes = 80
+            _valid_ids = [
+              1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13,
+              14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+              24, 25, 27, 28, 31, 32, 33, 34, 35, 36,
+              37, 38, 39, 40, 41, 42, 43, 44, 46, 47,
+              48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
+              58, 59, 60, 61, 62, 63, 64, 65, 67, 70,
+              72, 73, 74, 75, 76, 77, 78, 79, 80, 81,
+              82, 84, 85, 86, 87, 88, 89, 90]
+            cat_ids = {v: i for i, v in enumerate(_valid_ids)}
+        else:
+            self.max_objs = 3
+            self.num_classes = 20
+            cat_ids = {v: i for i, v in enumerate(np.arange(1, 21, dtype=np.int32))}
         
 #         if index != 0:
 #             time.sleep(5)
@@ -357,10 +402,16 @@ class Ctdet(CocoDataset):
         img = cv2.imread(img_path)
         height, width = img.shape[0], img.shape[1]
         
-        c = np.array([img.shape[1] / 2., img.shape[0] / 2.], dtype=np.float32)
-        
-        s = max(img.shape[0], img.shape[1]) * 1.0
-        input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
+        keep_res= False
+        if keep_res:
+            input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
+            c = np.array([img.shape[1] / 2., img.shape[0] / 2.], dtype=np.float32)
+            s = max(img.shape[0], img.shape[1]) * 1.0
+        else:
+            input_h = (height | self.size_divisor) + 1
+            input_w = (width | self.size_divisor) + 1
+            c = np.array([img.shape[1] // 2., img.shape[0] // 2.], dtype=np.float32)
+            s = np.array([input_w, input_h], dtype=np.float32)
         
         trans_input = get_affine_transform(c, s, 0, [input_w, input_h])
         

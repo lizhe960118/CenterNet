@@ -108,7 +108,7 @@ test_cfg = dict(a = 5)
 # dataset settings
 dataset_type = 'Ctdet'
 if use_coco:
-    data_root = '/hdd/lizhe/coco/'
+    data_root = '/data/lizhe/coco/'
 #     'ctdet': {'default_resolution': [512, 512], 'num_classes': 80, 
 #                 'mean': [0.408, 0.447, 0.470], 'std': [0.289, 0.274, 0.278],
 #                 'dataset': 'coco'},
@@ -117,7 +117,7 @@ if use_coco:
 #     img_norm_cfg = dict(
 #         mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 else:
-    data_root = '/hdd/lizhe/voc/'
+    data_root = '/data/lizhe/voc/'
     img_norm_cfg = dict(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], to_rgb=True)
 data = dict(
@@ -190,7 +190,7 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/centernet_hg'
 # load_from = None
-load_from = '/home/lizhe/ctdet_coco_dla_1x.pth'
+load_from = '/home/lizhe/CenterNet/ctdet_coco_dla_2x.pth'
 # resume_from = '/home/lizhe/ctdet_coco_dla_1x.pth'
 resume_from = None
 workflow = [('train', 1)]

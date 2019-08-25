@@ -11,7 +11,7 @@ from ..utils import ConvModule
 class ResNetFPN(nn.Module):
 
     def __init__(self,
-                 in_channels, # [
+                 in_channels, # 
                  out_channels,
                  num_outs,
                  start_level=0, # 1
@@ -114,7 +114,7 @@ class ResNetFPN(nn.Module):
         used_backbone_levels = len(laterals) # 1
         for i in range(used_backbone_levels - 1, 0, -1):
             laterals[i - 1] += F.interpolate(
-                laterals[i], scale_factor=2, mode='nearest')
+                laterals[i], scale_factor=2, mode='nearest') # 这里的上采样，仅仅为了得到高层的语义信息？
 
         # build outputs
         # part 1: from original levels

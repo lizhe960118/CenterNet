@@ -13,9 +13,10 @@ from .grid_rcnn import GridRCNN
 from .mask_scoring_rcnn import MaskScoringRCNN
 from .centernet import CenterNet
 from .centernet_fpn import CenterNetFPN
+from .two_stage_centernet import TwoStageCenterNet
 
 __all__ = [
     'BaseDetector', 'SingleStageDetector', 'TwoStageDetector', 'RPN',
     'FastRCNN', 'FasterRCNN', 'MaskRCNN', 'CascadeRCNN', 'HybridTaskCascade',
-    'RetinaNet', 'FCOS', 'GridRCNN', 'MaskScoringRCNN', 'CenterNet', 'CenterNetFPN'
+    'RetinaNet', 'FCOS', 'GridRCNN', 'MaskScoringRCNN', 'CenterNet', 'CenterNetFPN', 'TwoStageCenterNet'
 ]

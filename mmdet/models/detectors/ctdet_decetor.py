@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 # import random
 
-num_classes = 4
+num_classes = 80
     
 def _nms(heat, kernel=3):
     pad = (kernel - 1) // 2
@@ -175,7 +175,7 @@ def merge_outputs(detections):
         results[j] = np.concatenate(
             [detection[j] for detection in detections], axis=0).astype(np.float32)
 #         if len(self.scales) > 1 or self.opt.nms:
-        results[j] = soft_nms(results[j], Nt=0.5, method=2, threshold=0.01)
+        results[j] = soft_nms(results[j], Nt=0.5, method=2, threshold=0.001)
 #         print(results)
     scores = np.hstack(
       [results[j][:, 4] for j in range(1, num_classes + 1)])
