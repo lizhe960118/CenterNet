@@ -281,9 +281,10 @@ class exkp(nn.Module):
             #    layer = self.__getattr__(head)[ind]
             #    y = layer(cnv)
             #    out[head] = y
-            out = cnv
-            
-            outs.append(out)
+            if ind == 1:
+                out = cnv
+                outs.append(out)
+                
             if ind < self.nstack - 1:
                 inter = self.inters_[ind](inter) + self.cnvs_[ind](cnv)
                 inter = self.relu(inter)
@@ -298,7 +299,7 @@ def make_hg_layer(kernel, dim0, dim1, mod, layer=convolution, **kwargs):
 
 @BACKBONES.register_module
 class HourglassNet2(exkp):
-    def __init__(self, num_stacks=1):
+    def __init__(self, num_stacks=2):
         n       = 5
         dims    = [256, 256, 384, 384, 384, 512]
         modules = [2, 2, 2, 2, 2, 4]
@@ -314,6 +315,17 @@ class HourglassNet2(exkp):
 
     def init_weights(self, pretrained=None):
         print('initializing weights')
+    
+    def _freeze_model(self):
+        for p in self.parameters():
+            p.requires_grad=False
+#        for m in [self.stage_one_conv1, self.stage_one_bn1, self.stage_one_relu, self.stage_one_maxpool]:
+#            for param in m.parameters():
+#                param.requires_grad = False
+    
+    def train(self, mode=True):
+        super(HourglassNet2, self).train(mode)
+        self._freeze_model()
 
 # def get_large_hourglass_net(num_layers, heads, head_conv):
 #   model = HourglassNet(heads, 2)

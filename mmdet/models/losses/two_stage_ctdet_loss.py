@@ -88,9 +88,10 @@ class RegMSELoss(nn.Module):
         # import pdb; pdb.set_trace()
         # loss = F.l1_loss(pred * mask, target * mask, reduction='elementwise_mean')
         # loss = F.l1_loss(pred * mask, target * mask, size_average=False)
-        #loss = F.l1_loss(pred2 * mask, target * mask, reduction='sum')
+        #loss = F.l1_loss(pred_2 * mask, target * mask, reduction='sum')
         #loss = loss / (mask.sum() + 1e-4)
-        loss_fn = torch.nn.MSELoss(reduce=True, size_average=False)
+        #loss_fn = torch.nn.MSELoss(reduce=True, size_average=False)
+        loss_fn = torch.nn.SmoothL1Loss(reduction='sum')
         loss = loss_fn(pred_2 * mask, target * mask) 
         loss = loss / (mask.sum() + 1e-4)
         return loss
@@ -113,7 +114,7 @@ class TwoStageCtdetLoss(torch.nn.Module):
         # opts
 #         self.num_stacks = 1
 #         self.wh_weight = 0.1
-        self.wh_weight = 0.1
+        self.wh_weight = 1
         self.off_weight = 1
         self.hm_weight = 1
 

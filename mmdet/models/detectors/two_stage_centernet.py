@@ -47,29 +47,34 @@ class TwoStageCenterNet(TwoStageDetector):
 #         print("after preprocess\n:", img, img_meta)
 #        detections = []
 
-        output = self.backbone(img.type(torch.cuda.FloatTensor))[-1] # batch, c, h, m
+        output = self.backbone(img.type(torch.cuda.FloatTensor)) # batch, c, h, m
+        #print(output)
         
         output_stage_one = output[0]
         
         hm_stage_one = torch.clamp(output_stage_one['hm'].sigmoid_(), min=1e-4, max=1-1e-4)
         wh_stage_one = output_stage_one['wh']
-        reg = output_stage_one['reg']
+        reg_stage_one = output_stage_one['reg']
         
         
         output_stage_two = output[1]
-        hm_stage_two = torch.clamp(output_stage_two['hm'].sigmoid_(), min=1e-4, max=1-1e-4)
+        hm_stage_two = torch.clamp(output_stage_two['hm2'].sigmoid_(), min=1e-4, max=1-1e-4)
  
         delta_wh = output_stage_two['delta_wh']
-        delta_reg = output_stage_one['delta_reg']
+        delta_reg = output_stage_two['delta_reg']
         
-        # hm = hm_stage_two
+        #hm = hm_stage_two
+        #hm = hm_stage_one
+        #wh = wh_stage_one
+        #reg = reg_stage_one
         hm = (hm_stage_one + hm_stage_two) / 2 
+        #wh = wh_stage_one + 0.5 * delta_wh
         wh = wh_stage_one + delta_wh
         reg = reg_stage_one + delta_reg
         
         dets = ctdet_decode(hm, wh, reg=reg, K=100)
 
-        dets = post_process(dets, meta = img_meta[i], scale=1)
+        dets = post_process(dets, meta = img_meta, scale=1)
 
         detections = [dets]
 

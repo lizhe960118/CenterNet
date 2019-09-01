@@ -8,9 +8,13 @@ from .rpn_head import RPNHead
 from .ssd_head import SSDHead
 from .center_head import CenterHead
 from .fcos_plus_head import FCOS_PLUS_Head
-from . matrix_center_head import MatrixCenterHead
+from .matrix_center_head import MatrixCenterHead
+from .weight_center_head import WeightCenterHead
+from .sr_center_head import SRCenterHead
+
 __all__ = [
     'AnchorHead', 'GuidedAnchorHead', 'FeatureAdaption', 'RPNHead',
     'GARPNHead', 'RetinaHead', 'GARetinaHead', 'SSDHead', 'FCOSHead', 
-    'CenterHead', 'FCOS_PLUS_Head', 'MatrixCenterHead'
+    'CenterHead', 'FCOS_PLUS_Head', 'MatrixCenterHead', 'WeightCenterHead',
+    'SRCenterHead'
 ]

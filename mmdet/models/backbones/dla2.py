@@ -469,7 +469,7 @@ class DLA2(nn.Module):
     def forward(self, x):
         x = self.base(x)
         x = self.dla_up(x)
-        """
+        
         #for i in range(len(x)):
         #    print("x{}.shape:".format(i), x[i].shape)
         '''
@@ -510,8 +510,15 @@ class DLA2(nn.Module):
         return y_list
         """
         return tuple(x)
+        """
 
     def init_weights(self, pretrained=None):
         print('initializing weights')
-
-
+     
+    def _freeze_model(self):
+        for p in self.parameters():
+            p.requires_grad=False
+    
+    def train(self, mode=True):
+        super(DLA2, self).train(mode)
+        self._freeze_model()

@@ -15,15 +15,17 @@ INF = 1e8
 
 
 @HEADS.register_module
-class CenterHead(nn.Module):
+class WeightCenterHead(nn.Module):
 
     def __init__(self,
                  num_classes, # init 80
                  in_channels,
                  feat_channels=256,
                  stacked_convs=1,
-                 strides=(4, 8, 16, 32),
-                 regress_ranges=((-1, 32), (32, 128), (128, 512), (512, INF)),
+                 strides=(4, 8, 16, 32, 64),
+                 regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512),
+                                 (512, INF)),
+                 use_cross = False,
                  loss_hm = dict(
                      type="CenterFocalLoss"
                  ), # 这里实现 CenterFocalLoss
@@ -37,7 +39,7 @@ class CenterHead(nn.Module):
                  ),
                  conv_cfg=None,
                  norm_cfg=dict(type='GN', num_groups=32, requires_grad=True)):
-        super(CenterHead, self).__init__()
+        super(WeightCenterHead, self).__init__()
 
         self.num_classes = num_classes
         # self.cls_out_channels = num_classes - 1
@@ -54,6 +56,7 @@ class CenterHead(nn.Module):
         self.conv_cfg = conv_cfg
         self.norm_cfg = norm_cfg
         self.fp16_enabled = False
+        self.use_cross = use_cross
 
         self._init_layers()
 
@@ -339,68 +342,77 @@ class CenterHead(nn.Module):
             # condition: in the regress_ranges
             origin_h, origin_w = bbox[3] - bbox[1], bbox[2] - bbox[0]
             #max_h_w = max(h, w) / 2
-            max_h_w = max(origin_h, origin_w) * 2 # 最长边为32在P2
+            max_h_w = max(origin_h, origin_w)
+            #max_h_w = max(origin_h, origin_w) * 2 # 最长边为32在P2
             # 根据max_h_w在哪一层将output设置为当前层的
-            index_level = 0
+            index_levels = []
+            #index_level = 0
             for i in range(num_levels):
                 min_regress_distance, max_regress_distance = self.regress_ranges[i]
-                if (max_h_w > min_regress_distance) and (max_h_w <= max_regress_distance):
-                    index_level = i
+                if not self.use_cross and (max_h_w > min_regress_distance) and (max_h_w <= max_regress_distance):
+                    index_levels.append(i)
                     break
-            
-            output_h, output_w = self.featmap_sizes[index_level]
-            #print(output_h, output_w)
-            hm = heatmaps_targets[index_level]
-            wh = wh_targets[index_level]
-            offset = offset_targets[index_level]
-            
-            # c, s is passed by meta
-            trans_output = get_affine_transform(img_meta['c'], img_meta['s'], 0, [output_w, output_h])
-            bbox[:2] = affine_transform(bbox[:2], trans_output)
-            bbox[2:] = affine_transform(bbox[2:], trans_output)
-            bbox[[0, 2]] = np.clip(bbox[[0, 2]], 0, output_w - 1) #x1, x2
-            bbox[[1, 3]] = np.clip(bbox[[1, 3]], 0, output_h - 1)
-            h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
-            #print(h, w)
-            # 转换到当层
-            if h > 0 and w > 0:
-                radius = gaussian_radius((math.ceil(h), math.ceil(w)))
-                radius = max(0, int(radius))
-                ct = np.array(
-                  [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
-                #print(ct)
-                ct_int = ct.astype(np.int32)
-                #hm[cls_id, ct_int[1], ct_int[0]] = 1
                 
-                #if (ct_int[1] - 1) > 0:
-                #    hm[cls_id, ct_int[1] - 1, ct_int[0]] = 0.5
-                #if (ct_int[0] - 1) > 0:
-                #    hm[cls_id, ct_int[1], ct_int[0] - 1] = 0.5
-                #if (ct_int[1] + 1) < output_h:
-                #    hm[cls_id, ct_int[1] + 1, ct_int[0]] = 0.5
-                #if (ct_int[0] + 1) < output_w:
-                #    hm[cls_id, ct_int[1], ct_int[0] + 1] = 0.5
-                draw_umich_gaussian(hm[cls_id], ct_int, radius)
+                if self.use_cross:
+                    min_regress_distance = min_regress_distance * 0.8
+                    max_regress_distance = max_regress_distance * 1.3
+                    if (max_h_w > min_regress_distance) and (max_h_w <= max_regress_distance):
+                        index_levels.append(i)
+                    
+            for index_level in index_levels:
+                output_h, output_w = self.featmap_sizes[index_level]
+                #print(output_h, output_w)
+                hm = heatmaps_targets[index_level]
+                wh = wh_targets[index_level]
+                offset = offset_targets[index_level]
+            
+                # c, s is passed by meta
+                trans_output = get_affine_transform(img_meta['c'], img_meta['s'], 0, [output_w, output_h])
+                bbox[:2] = affine_transform(bbox[:2], trans_output)
+                bbox[2:] = affine_transform(bbox[2:], trans_output)
+                bbox[[0, 2]] = np.clip(bbox[[0, 2]], 0, output_w - 1) #x1, x2
+                bbox[[1, 3]] = np.clip(bbox[[1, 3]], 0, output_h - 1)
+                h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
+                #print(h, w)
+                # 转换到当层
+                if h > 0 and w > 0:
+                    radius = gaussian_radius((math.ceil(h), math.ceil(w)))
+                    radius = max(0, int(radius))
+                    ct = np.array(
+                      [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
+                    #print(ct)
+                    ct_int = ct.astype(np.int32)
+                    #hm[cls_id, ct_int[1], ct_int[0]] = 1
 
-                h, w = 1. * h, 1. * w
-                offset_count = ct - ct_int # h, w
-                # ct_int即表明在featmap的位置 ct_int[1] * output_w + ct_int[0] 
-                # TODO:如果当前位置有物体的中心，现在是直接覆盖
-                # 这里设置监督信号，第1位表示w，第2位表示h
-                # 这里对featmap进行缩放？
-#                 wh[ct_int[1], ct_int[0], 0] = w / output_w# output_h, output_w <= y, x
-#                 wh[ct_int[1], ct_int[0], 1] = h / output_h
-#                 offset[ct_int[1], ct_int[0], 0] = offset_count[0] / output_w
-#                 offset[ct_int[1], ct_int[0], 0] = offset_count[1] / output_h
-                wh[ct_int[1], ct_int[0], 0] = w 
-                wh[ct_int[1], ct_int[0], 1] = h 
-                offset[ct_int[1], ct_int[0], 0] = offset_count[0]
-                offset[ct_int[1], ct_int[0], 0] = offset_count[1]
+                    #if (ct_int[1] - 1) > 0:
+                    #    hm[cls_id, ct_int[1] - 1, ct_int[0]] = 0.5
+                    #if (ct_int[0] - 1) > 0:
+                    #    hm[cls_id, ct_int[1], ct_int[0] - 1] = 0.5
+                    #if (ct_int[1] + 1) < output_h:
+                    #    hm[cls_id, ct_int[1] + 1, ct_int[0]] = 0.5
+                    #if (ct_int[0] + 1) < output_w:
+                    #    hm[cls_id, ct_int[1], ct_int[0] + 1] = 0.5
+                    draw_umich_gaussian(hm[cls_id], ct_int, radius)
+
+                    h, w = 1. * h, 1. * w
+                    offset_count = ct - ct_int # h, w
+                    # ct_int即表明在featmap的位置 ct_int[1] * output_w + ct_int[0] 
+                    # TODO:如果当前位置有物体的中心，现在是直接覆盖
+                    # 这里设置监督信号，第1位表示w，第2位表示h
+                    # 这里对featmap进行缩放？
+    #                 wh[ct_int[1], ct_int[0], 0] = w / output_w# output_h, output_w <= y, x
+    #                 wh[ct_int[1], ct_int[0], 1] = h / output_h
+    #                 offset[ct_int[1], ct_int[0], 0] = offset_count[0] / output_w
+    #                 offset[ct_int[1], ct_int[0], 0] = offset_count[1] / output_h
+                    wh[ct_int[1], ct_int[0], 0] = w * (2 ** index_level) # baseline is P2
+                    wh[ct_int[1], ct_int[0], 1] = h * (2 ** index_level)
+                    offset[ct_int[1], ct_int[0], 0] = offset_count[0] * (2 ** index_level) 
+                    offset[ct_int[1], ct_int[0], 0] = offset_count[1] * (2 ** index_level)
             
             
-            heatmaps_targets[index_level] = hm
-            wh_targets[index_level] = wh
-            offset_targets[index_level] = offset
+                heatmaps_targets[index_level] = hm
+                wh_targets[index_level] = wh
+                offset_targets[index_level] = offset
 
         flatten_heatmaps_targets = [
             hm.transpose(1, 2, 0).reshape(-1, self.cls_out_channels)
@@ -491,6 +503,11 @@ class CenterHead(nn.Module):
             assert cls_score.size()[-2:] == wh_pred.size()[-2:] == offset_pred.size()[-2:] == featmap_size
             
             output_h, output_w = featmap_size
+            index_level = int((512 / 4) / output_h) - 1
+            
+            wh_pred = wh_pred / (2 ** index_level)
+            offset_pred = offset_pred / (2 ** index_level)
+            
             #实际上得到了每一层的hm, wh, offset
             hm = torch.clamp(cls_score.sigmoid_(), min=1e-4, max=1-1e-4).unsqueeze(0) # 增加一个纬度
             #wh_pred[0, :, :] = wh_pred[0, :, :] * output_w

@@ -437,7 +437,12 @@ class TwoStageResNetDCN2(nn.Module):
 #        self.stage_one_deconv_layers.eval()
         for param in self.stage_one_deconv_layers.parameters():
             param.requires_grad = False                       
-                    
+        
+        for head in ["hm", "wh", "reg"]:
+            conv_m = self.__getattr__('stage_one_' + head)
+            for param in conv_m.parameters():
+                param.requires_grad = False
+
 #         for i in range(1, self.frozen_stages + 1):
 #             m = getattr(self, 'layer{}'.format(i))
 #             m.eval()

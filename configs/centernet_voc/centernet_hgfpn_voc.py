@@ -64,7 +64,7 @@ data = dict(
     val=dict(
         type=dataset_type,
         use_coco = False,
-        ann_file=data_root + 'annotations/pascal_val2012.json',
+        ann_file=data_root + 'annotations//pascal_test2007.json',
         img_prefix=data_root + 'images/',
         img_scale=(1333, 800),
         img_norm_cfg=img_norm_cfg,
@@ -76,7 +76,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         use_coco = False,
-        ann_file=data_root + 'annotations/pascal_val2012.json',
+        ann_file=data_root + 'annotations/pascal_test2007.json',
         img_prefix=data_root + 'images/',
         #img_scale=(1333, 800),
         img_scale=(512, 512),
@@ -97,7 +97,7 @@ lr_config = dict(
     warmup='constant',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[40])
+    step=[20])
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
@@ -108,7 +108,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 48
+total_epochs = 24
 #device_ids = range(2)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'

@@ -15,16 +15,17 @@ INF = 1e8
 
 
 @HEADS.register_module
-class CenterHead(nn.Module):
+class SRCenterHead(nn.Module): # 传入的fpn每层相同分辨率
 
     def __init__(self,
                  num_classes, # init 80
                  in_channels,
                  feat_channels=256,
-                 stacked_convs=1,
-                 strides=(4, 8, 16, 32, 64),
-                 regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512),
-                                 (512, INF)),
+                 stacked_convs=2,
+                 strides=[4, 4, 4],
+                 regress_ranges=((-1, 48),(48, 192), (192, 1e8)),
+                 regress_areas=((-1, 1024), (1024, 9216),(9216, 1e8)),
+                 use_area = False,
                  use_cross = False,
                  loss_hm = dict(
                      type="CenterFocalLoss"
@@ -38,8 +39,11 @@ class CenterHead(nn.Module):
                     loss_weight=1.0
                  ),
                  conv_cfg=None,
-                 norm_cfg=dict(type='GN', num_groups=32, requires_grad=True)):
-        super(CenterHead, self).__init__()
+                 norm_cfg=dict(type='GN', num_groups=32, requires_grad=True),
+                 use_dilation_conv=False, 
+                 share_conv_weights=False
+                ):
+        super(SRCenterHead, self).__init__()
 
         self.num_classes = num_classes
         # self.cls_out_channels = num_classes - 1
@@ -49,6 +53,7 @@ class CenterHead(nn.Module):
         self.stacked_convs = stacked_convs
         self.strides = strides
         self.regress_ranges = regress_ranges
+        self.regress_areas = regress_areas
         self.featmap_sizes = None
         self.loss_hm = build_loss(loss_hm)
         self.loss_wh = build_loss(loss_wh)
@@ -57,6 +62,10 @@ class CenterHead(nn.Module):
         self.norm_cfg = norm_cfg
         self.fp16_enabled = False
         self.use_cross = use_cross
+        self.use_area = use_area
+        self.use_dilation_conv = use_dilation_conv # 实现不同分支进行dilation卷积
+        self.share_conv_weights = share_conv_weights
+            
 
         self._init_layers()
 
@@ -152,7 +161,7 @@ class CenterHead(nn.Module):
              gt_bboxes_ignore=None):
 
         assert len(cls_scores) == len(wh_preds) == len(offset_preds)
-        featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
+        featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores] # 每层都一样
         self.featmap_sizes = featmap_sizes
         
         all_level_points = self.get_points(featmap_sizes, offset_preds[0].dtype,
@@ -341,25 +350,46 @@ class CenterHead(nn.Module):
                 
             # condition: in the regress_ranges
             origin_h, origin_w = bbox[3] - bbox[1], bbox[2] - bbox[0]
-            #max_h_w = max(h, w) / 2
-            max_h_w = max(origin_h, origin_w)
-            #max_h_w = max(origin_h, origin_w) * 2 # 最长边为32在P2
-            # 根据max_h_w在哪一层将output设置为当前层的
+            
             index_levels = []
-            #index_level = 0
-            for i in range(num_levels):
-                min_regress_distance, max_regress_distance = self.regress_ranges[i]
-                if not self.use_cross and (max_h_w > min_regress_distance) and (max_h_w <= max_regress_distance):
-                    index_levels.append(i)
-                    break
+            if self.use_area:
+                origin_area = origin_h * origin_w
+                #print(origin_area)
                 
-                if self.use_cross:
-                    min_regress_distance = min_regress_distance * 0.8
-                    max_regress_distance = max_regress_distance * 1.3
-                    if (max_h_w > min_regress_distance) and (max_h_w <= max_regress_distance):
+                for i in range(num_levels):
+                    min_regress_area, max_regress_area = self.regress_areas[i]
+                
+                    if not self.use_cross and (origin_area > min_regress_area) and (origin_area <= max_regress_area):
                         index_levels.append(i)
-                    
+                        break
+
+                    if self.use_cross:
+                        min_regress_area = min_regress_area * 0.8
+                        max_regress_area = max_regress_area * 1.3
+                        if (origin_area > min_regress_area) and (origin_area <= max_regress_area):
+                            index_levels.append(i)
+                           
+            else:       
+                #max_h_w = max(h, w) / 2
+                max_h_w = max(origin_h, origin_w)
+                #max_h_w = max(origin_h, origin_w) * 2 # 最长边为32在P2
+                # 根据max_h_w在哪一层将output设置为当前层的
+                
+                #index_level = 0
+                for i in range(num_levels):
+                    min_regress_distance, max_regress_distance = self.regress_ranges[i]
+                    if not self.use_cross and (max_h_w > min_regress_distance) and (max_h_w <= max_regress_distance):
+                        index_levels.append(i)
+                        break
+
+                    if self.use_cross:
+                        min_regress_distance = min_regress_distance * 0.8
+                        max_regress_distance = max_regress_distance * 1.3
+                        if (max_h_w > min_regress_distance) and (max_h_w <= max_regress_distance):
+                            index_levels.append(i)
+
             for index_level in index_levels:
+                #print(index_level)
                 output_h, output_w = self.featmap_sizes[index_level]
                 #print(output_h, output_w)
                 hm = heatmaps_targets[index_level]
@@ -380,18 +410,9 @@ class CenterHead(nn.Module):
                     radius = max(0, int(radius))
                     ct = np.array(
                       [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
-                    #print(ct)
+  
                     ct_int = ct.astype(np.int32)
-                    #hm[cls_id, ct_int[1], ct_int[0]] = 1
-
-                    #if (ct_int[1] - 1) > 0:
-                    #    hm[cls_id, ct_int[1] - 1, ct_int[0]] = 0.5
-                    #if (ct_int[0] - 1) > 0:
-                    #    hm[cls_id, ct_int[1], ct_int[0] - 1] = 0.5
-                    #if (ct_int[1] + 1) < output_h:
-                    #    hm[cls_id, ct_int[1] + 1, ct_int[0]] = 0.5
-                    #if (ct_int[0] + 1) < output_w:
-                    #    hm[cls_id, ct_int[1], ct_int[0] + 1] = 0.5
+                  
                     draw_umich_gaussian(hm[cls_id], ct_int, radius)
 
                     h, w = 1. * h, 1. * w

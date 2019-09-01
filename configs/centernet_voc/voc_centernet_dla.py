@@ -156,7 +156,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         ann_file= data_root + 'annotations/' +
-            ('instances_minival2014.json' if use_coco else 'pascal_test2007.json'),
+            ('instances_minival2014.json' if use_coco else 'pascal_val2012.json'),
         img_prefix=data_root + ('images/minival2014/' if use_coco else 'images/'),
 #         img_scale=(1333, 800),
 #         img_scale=(800, 800),
@@ -202,6 +202,6 @@ log_level = 'INFO'
 work_dir = './work_dirs/centernet_hg'
 load_from = None
 # load_from = '/home/lizhe/ctdet_coco_dla_1x.pth'
-resume_from = '/data/lizhe/model/dla_cache_4/epoch_44.pth'
+resume_from = None
 #resume_from = None
 workflow = [('train', 1)]

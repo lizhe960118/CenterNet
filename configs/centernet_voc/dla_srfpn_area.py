@@ -1,25 +1,29 @@
 # model settings
 model = dict(
     type='CenterNetFPN',
-    #pretrained='open-mmlab://resnet50_caffe',
-     backbone=dict(
-        type='HourglassNet2'),
+    backbone=dict(
+        type='DLA2',
+        base_name='dla34'),
     neck=dict(
-        type='MatrixFPN',
-        in_channels=[256],
+        type='SRFPN',
+        in_channels=[64],
         out_channels=256),
     bbox_head=dict(
-        type='MatrixCenterHead',
+        type='SRCenterHead',
         num_classes=20,
         in_channels=256,
-        stacked_convs=1,
+        stacked_convs=3,
         feat_channels=256,
+        strides=[4, 4, 4],
+        regress_ranges=((-1, 48),(48, 192), (192, 1e8)),
+        regress_areas=((-1, 1024), (1024, 9216),(9216, 1e8)),   
+        use_area = True,
+        use_cross = False,
         loss_hm=dict(
             type='CenterFocalLoss'),
         loss_wh = dict(type="L1Loss",loss_weight=0.1),
         loss_offset = dict(type="L1Loss",loss_weight=1.0))
 )
-
 # training and testing settings
 train_cfg = dict(
     assigner=dict(
@@ -32,7 +36,6 @@ train_cfg = dict(
     pos_weight=-1,
     debug=False
 )
-
 test_cfg = dict(
     a = 5
 )
@@ -46,7 +49,7 @@ img_norm_cfg = dict(
 
 data = dict(
     imgs_per_gpu=4,
-    workers_per_gpu=4,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         use_coco = False,
@@ -79,6 +82,7 @@ data = dict(
         use_coco = False,
         ann_file=data_root + 'annotations/pascal_test2007.json',
         img_prefix=data_root + 'images/',
+        #img_scale=(1333, 800),
         img_scale=(512, 512),
         img_norm_cfg=img_norm_cfg,
         size_divisor=31,
@@ -88,7 +92,7 @@ data = dict(
         with_label=False,
         test_mode=True))
 # optimizer
-optimizer = dict(type='Adam', lr= 0.00005, betas=(0.9, 0.999), eps=1e-8)
+optimizer = dict(type='Adam', lr= 0.00025, betas=(0.9, 0.999), eps=1e-8)
     
 optimizer_config = dict(grad_clip=None)
 # learning policy
@@ -109,13 +113,10 @@ log_config = dict(
 # yapf:enable
 # runtime settings
 total_epochs = 48
-# device_ids = range(8)
+#device_ids = range(2)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/matrix_center_fpn_r50_caffe_fpn_gn_1x_4gpu'
-
-#load_from = '/home/lizhe/CenterNet/HgNet_voc.pth'
-load_from = '/data/lizhe/matrixnet_cache/epoch_26.pth'
-#load_from = None
+work_dir = './work_dirs/center_hgfpn_2gpu'
+load_from = '/home/lizhe/CenterNet/ctdet_pascal_dla_512.pth'
 resume_from = None
 workflow = [('train', 1)]

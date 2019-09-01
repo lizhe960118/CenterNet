@@ -387,7 +387,7 @@ class Ctdet(CocoDataset):
               82, 84, 85, 86, 87, 88, 89, 90]
             cat_ids = {v: i for i, v in enumerate(_valid_ids)}
         else:
-            self.max_objs = 3
+            self.max_objs = 50
             self.num_classes = 20
             cat_ids = {v: i for i, v in enumerate(np.arange(1, 21, dtype=np.int32))}
         
@@ -402,7 +402,7 @@ class Ctdet(CocoDataset):
         img = cv2.imread(img_path)
         height, width = img.shape[0], img.shape[1]
         
-        keep_res= False
+        keep_res= True
         if keep_res:
             input_h, input_w = self.img_scales[0][1], self.img_scales[0][0]
             c = np.array([img.shape[1] / 2., img.shape[0] / 2.], dtype=np.float32)
